@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>于制课堂游戏：星际轨道 V8.1 (增强特效版)</title>
+<style>
+    /* ================= 1. 全局设置 & 动态背景 ================= */
+    :root {
+        --space-bg: #000000;
+        --neon-cyan: #00f3ff;
+        --neon-pink: #ff0055;
+        --neon-gold: #ffe600;
+        --correct-green: #00ff88;
+        --wrong-red: #ff3838;
+        --bar-height: 40px;
+    }
+
+    body {
+        font-family: 'Microsoft YaHei', 'Segoe UI', sans-serif;
+        background: black;
+        color: white;
+        margin: 0;
+        height: 100vh;
+        overflow: hidden;
+        user-select: none;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        perspective: 1000px;
+    }
+
+    /* 光速穿梭背景 */
+    .warp-field {
+        position: fixed; top: 50%; left: 50%;
+        width: 2px; height: 2px;
+        background: transparent;
+        box-shadow: 
+            0 0 0 white, 
+            0 0 0 white;
+        border-radius: 50%;
+        animation: warpAnim 20s linear infinite;
+        z-index: -1;
+    }
+    
+    .warp-field::after {
+        content: " "; position: absolute; top: 0; left: 0;
+        width: 2px; height: 2px; border-radius: 50%;
+        box-shadow: 
+            -100vw -50vh 2px white, 20vw -40vh 1px cyan, 
+            -20vw 20vh 2px white, 40vw 30vh 1px magenta,
+            -80vw 10vh 2px white, 60vw -20vh 1px yellow,
+            0vw -80vh 2px cyan, 10vw 90vh 1px white;
+        transform: translateZ(-1000px);
+        animation: starsFly 5s linear infinite;
+    }
+
+    @keyframes starsFly {
+        0% { transform: translateZ(-1000px) rotate(0deg); opacity: 0; }
+        50% { opacity: 1; }
+        100% { transform: translateZ(1000px) rotate(180deg); opacity: 0; }
+    }
+
+    /* 狂热模式 */
+    body.fever-mode .warp-field::after {
+        animation: starsFly 0.6s linear infinite; /* 极速 */
+        box-shadow: 
+            -100vw -50vh 3px var(--neon-cyan), 20vw -40vh 3px var(--neon-pink), 
+            -20vw 20vh 3px white, 40vw 30vh 3px var(--neon-gold);
+    }
+
+    /* ================= 2. 故障特效 & 新增视觉特效 ================= */
+    .glitch-active {
+        animation: glitch-anim 0.3s cubic-bezier(.25, .46, .45, .94) both infinite;
+    }
+    @keyframes glitch-anim {
+        0% { transform: translate(0); filter: hue-rotate(0deg); }
+        20% { transform: translate(-5px, 5px); filter: hue-rotate(90deg); }
+        40% { transform: translate(-5px, -5px); filter: hue-rotate(180deg); }
+        60% { transform: translate(5px, 5px); filter: hue-rotate(270deg); }
+        80% { transform: translate(5px, -5px); filter: hue-rotate(0deg); }
+        100% { transform: translate(0); filter: hue-rotate(0deg); }
+    }
+
+    /* 新增：浮动得分特效 */
+    .float-score {
+        position: fixed;
+        font-size: 3em;
+        font-weight: 900;
+        pointer-events: none;
+        z-index: 200;
+        text-shadow: 0 0 10px white;
+        animation: floatUp 0.8s ease-out forwards;
+    }
+    @keyframes floatUp {
+        0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
+        20% { transform: translate(-50%, -50%) scale(1.2); opacity: 1; }
+        100% { transform: translate(-50%, -150px) scale(1); opacity: 0; }
+    }
+
+    /* 新增：点击波纹 */
+    .shockwave {
+        position: fixed;
+        border-radius: 50%;
+        border: 4px solid white;
+        transform: translate(-50%, -50%);
+        pointer-events: none;
+        z-index: 100;
+        animation: shockwaveAnim 0.5s ease-out forwards;
+    }
+    @keyframes shockwaveAnim {
+        0% { width: 0; height: 0; opacity: 1; border-width: 10px; }
+        100% { width: 500px; height: 500px; opacity: 0; border-width: 0; }
+    }
+
+    /* ================= 3. 实体计时条 ================= */
+    .timer-container {
+        position: fixed; top: 0; left: 0; width: 100%;
+        height: var(--bar-height);
+        background: rgba(255,255,255,0.1);
+        z-index: 100;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.5);
+    }
+    .timer-bar {
+        height: 100%; width: 100%;
+        background: linear-gradient(90deg, var(--neon-cyan), var(--neon-pink));
+        transition: width 0.1s linear, background 0.3s;
+        box-shadow: 0 0 20px var(--neon-cyan);
+        position: relative;
+    }
+
+    /* ================= 4. 游戏层与巨型UI ================= */
+    .game-layer {
+        position: relative; width: 100%; height: 100%;
+        display: flex; justify-content: center; align-items: center;
+        z-index: 10;
+    }
+
+    /* 轨道系统 */
+    .orbit-system {
+        position: relative; width: 1000px; height: 900px;
+        display: flex; justify-content: center; align-items: center;
+    }
+
+    /* 中央恒星 (问题) */
+    .sun-core {
+        position: absolute; width: 400px; height: 400px;
+        background: radial-gradient(circle at 30% 30%, #fff, #dfe6e9);
+        border-radius: 50%;
+        display: flex; flex-direction: column; justify-content: center; align-items: center;
+        box-shadow: 0 0 100px rgba(0, 243, 255, 0.5), inset 0 0 40px rgba(0,0,0,0.2);
+        z-index: 10; text-align: center;
+        animation: pulseSun 4s infinite ease-in-out;
+        border: 10px solid rgba(255,255,255,0.8);
+    }
+    @keyframes pulseSun { 0%,100%{transform:scale(1);} 50%{transform:scale(1.03); box-shadow: 0 0 150px rgba(0, 243, 255, 0.8);} }
+
+    .q-main { font-size: 5.5em; font-weight: 900; line-height: 1; color: #2d3436; text-shadow: 2px 2px 0 #fff; margin: 0; }
+    .q-main.arabic { font-family: 'Amiri', serif; font-size: 4.8em; color: #d35400; line-height: 1.2; }
+    .q-sub { font-size: 3em; color: #0984e3; font-weight: bold; margin-top: 5px; font-family: 'Segoe UI', sans-serif; letter-spacing: 2px; }
+
+    /* 卫星 (选项) */
+    .satellite-wrapper {
+        position: absolute; width: 260px; height: 260px;
+        display: flex; justify-content: center; align-items: center; z-index: 20;
+    }
+    .satellite-body {
+        width: 100%; height: 100%;
+        background: rgba(20, 20, 40, 0.85);
+        backdrop-filter: blur(20px);
+        border: 4px solid rgba(255, 255, 255, 0.4);
+        border-radius: 50%;
+        display: flex; flex-direction: column; justify-content: center; align-items: center;
+        cursor: pointer; transition: transform 0.2s;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+        animation: floatMove 4s ease-in-out infinite;
+    }
+    @keyframes floatMove { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-30px); } }
+
+    .satellite-body:hover {
+        background: white; transform: scale(1.15) translateY(-30px);
+        border-color: var(--neon-cyan); box-shadow: 0 0 80px var(--neon-cyan); z-index: 30;
+    }
+    
+    .opt-main { font-size: 2.2em; font-weight: bold; color: white; pointer-events: none; transition: color 0.2s; }
+    .opt-sub { font-size: 1.3em; color: #aaa; pointer-events: none; transition: color 0.2s; }
+    .satellite-body:hover .opt-main { color: #2d3436; }
+    .satellite-body:hover .opt-sub { color: #636e72; }
+    
+    .pinyin-hl { 
+        color: var(--neon-cyan); font-size: 2em; font-weight: bold; 
+        text-shadow: 0 0 15px var(--neon-cyan); margin-bottom: 5px; pointer-events: none;
+    }
+    .satellite-body:hover .pinyin-hl { color: #0984e3; text-shadow: none; }
+
+    /* 连接线 */
+    .svg-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 5; }
+    .connector { stroke: rgba(255,255,255,0.15); stroke-width: 5; stroke-dasharray: 15; }
+
+    /* ================= 5. 粒子与特效 ================= */
+    .sparkle {
+        position: absolute; width: 0; height: 0;
+        border-left: 5px solid transparent; border-right: 5px solid transparent; border-bottom: 20px solid white;
+        transform-origin: center; animation: sparkleFly 0.8s ease-out forwards; z-index: 50;
+    }
+    @keyframes sparkleFly {
+        0% { transform: translate(0,0) scale(0) rotate(0deg); opacity: 1; }
+        100% { transform: translate(var(--tx), var(--ty)) scale(1.5) rotate(720deg); opacity: 0; }
+    }
+
+    /* 正确/错误状态 */
+    .correct-anim {
+        background: var(--correct-green) !important; border-color: white !important;
+        animation: successPop 0.4s forwards !important;
+    }
+    .correct-anim .opt-main, .correct-anim .opt-sub, .correct-anim .pinyin-hl { color: #004d2c !important; text-shadow:none;} 
+    
+    .wrong-anim {
+        background: var(--wrong-red) !important;
+        animation: shakeBtn 0.4s forwards !important;
+    }
+    @keyframes successPop { 0%{transform:scale(1);} 50%{transform:scale(1.3);} 100%{transform:scale(1.2);} }
+    @keyframes shakeBtn { 0%,100%{transform:translateX(0);} 25%{transform:translateX(-20px);} 75%{transform:translateX(20px);} }
+
+    /* 仪表盘 */
+    .score-board { position: fixed; top: 60px; right: 50px; text-align: right; z-index: 50; }
+    .score-num { font-size: 6em; font-weight: 900; color: white; text-shadow: 0 0 30px var(--neon-pink); line-height: 1; }
+    .combo-text { 
+        font-size: 3.5em; color: var(--neon-gold); font-weight: bold; font-style: italic; 
+        display: none; animation: bounceIn 0.5s; text-shadow: 4px 4px 0 #d35400;
+    }
+    @keyframes bounceIn { 0%{transform:scale(0);} 60%{transform:scale(1.2);} 100%{transform:scale(1);} }
+
+    /* UI 通用 */
+    .login-box {
+        background: rgba(10, 10, 20, 0.9);
+        border: 2px solid var(--neon-cyan);
+        padding: 40px; border-radius: 30px;
+        width: 90%; max-width: 1400px; height: 85vh;
+        display: flex; flex-direction: column;
+        box-shadow: 0 0 100px rgba(0, 243, 255, 0.2);
+    }
+    .name-grid {
+        display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 25px; overflow-y: auto; padding: 20px; direction: rtl;
+    }
+    .btn-name {
+        font-family: 'Amiri'; font-size: 2.2em; padding: 25px; border-radius: 20px;
+        border: 2px solid #555; background: #fff; color: #333; cursor: pointer;
+        font-weight: bold; transition: 0.2s;
+    }
+    .btn-name:hover { transform: scale(1.05); background: var(--neon-cyan); border-color: white; }
+    .btn-name.played { background: #e3f9e5; color: #27ae60; border-color: #2ecc71; }
+
+    .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 200; display: none; align-items: center; justify-content: center; }
+    .modal { background: #111; padding: 60px; border-radius: 40px; border: 4px solid var(--neon-cyan); text-align: center; max-width: 900px;}
+    .btn-start {
+        font-size: 2.5em; padding: 20px 80px; border-radius: 60px;
+        background: linear-gradient(90deg, #ff00cc, #333399); color: white; border: none;
+        box-shadow: 0 0 40px rgba(255, 0, 204, 0.5); cursor: pointer; margin-top: 30px;
+        font-family: 'Amiri', sans-serif;
+    }
+    .btn-start:hover { transform: scale(1.1); filter: brightness(1.2); }
+
+</style>
+</head>
+<body>
+
+<div class="warp-field"></div>
+
+<div class="timer-container" id="timerContainer" style="display:none;">
+    <div class="timer-bar" id="timerBar"></div>
+</div>
+
+<div class="game-layer" id="gameLayer"></div>
+
+<div class="score-board" id="scoreBoard" style="display:none;">
+    <div class="score-num" id="scoreNum">0</div>
+    <div class="combo-text" id="comboText">COMBO!</div>
+</div>
+
+<div class="overlay" id="introOverlay" style="display:flex;">
+    <div class="modal">
+        <h1 style="color:var(--neon-cyan); font-size:4.5em; margin:0; text-shadow:0 0 20px var(--neon-cyan);">🪐 于制课堂游戏V8.1 版</h1>
+        <div style="font-size:2.2em; text-align:right; direction:rtl; margin:30px 0; line-height:1.6;">
+            <p><strong>✨ الميزات الجديدة (New Features):</strong></p>
+            <ul>
+                <li>🛠️ <strong>إصلاح الخلل (Bug Fix):</strong> منع النقر المتكرر.</li>
+                <li>🎵 <strong>أصوات جديدة (New SFX):</strong> تأثيرات صوتية محسنة.</li>
+                <li>🌟 <strong>مؤثرات بصرية (VFX):</strong> تأثيرات بصرية جديدة.</li>
+            </ul>
+        </div>
+        <button class="btn-start" onclick="closeIntro()">انطلاق (GO)</button>
+    </div>
+</div>
+
+<div class="overlay" id="warningOverlay">
+    <div class="modal" style="border-color:var(--wrong-red);">
+        <h1 style="color:var(--wrong-red); font-size:4em;">⚠️ تحذير (Warning)</h1>
+        <p style="font-size:2em; direction:rtl;">أنت تنقر بسرعة مستحيلة!</p>
+        <button class="btn-start" style="background:#555;" onclick="resumeGame()">فهمت</button>
+    </div>
+</div>
+
+<script>
+    // ================= 1. 数据配置 =================
+    const studentList = [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+    ];
+
+    const vocabData = [
+        {zh: "应该", py: "yīnggāi", ar: "يَجِبُ", en: "should"},
+        {zh: "冰淇淋", py: "bīngqílín", ar: "آيْس كَرِيم", en: "ice cream"},
+        {zh: "草莓", py: "cǎoméi", ar: "فَرَاوِلَة", en: "strawberry"},
+        {zh: "更", py: "gèng", ar: "أَكْثَر", en: "even more"},
+        {zh: "芒果", py: "mángguǒ", ar: "مَانْجُو", en: "mango"},
+        {zh: "马上", py: "mǎshàng", ar: "حَالاً / فَوْرًا", en: "immediately"},
+        {zh: "前面", py: "qiánmiàn", ar: "أَمَامَ", en: "front"},
+        {zh: "什么样", py: "shénmeyàng", ar: "أَيُّ نَوْعٍ", en: "what kind of"},
+        {zh: "个子", py: "gèzi", ar: "قَامَة / طُول", en: "height"},
+        {zh: "高", py: "gāo", ar: "طَوِيل", en: "tall"},
+        {zh: "眼睛", py: "yǎnjing", ar: "عَيْن", en: "eye"},
+        {zh: "后面", py: "hòumiàn", ar: "خَلْفَ / وَرَاءَ", en: "behind"},
+        {zh: "下课", py: "xiàkè", ar: "اِنْتِهَاءُ الدَّرْسِ", en: "finish class"},
+        {zh: "以后", py: "yǐhòu", ar: "بَعْدَ", en: "after"},
+        {zh: "同学", py: "tóngxué", ar: "زَمِيلُ دِرَاسَةٍ", en: "classmate"},
+        {zh: "回", py: "huí", ar: "يَرْجِعُ", en: "return"},
+        {zh: "一边", py: "yìbiān", ar: "فِي نَفْسِ الْوَقْتِ", en: "at the same time"},
+        {zh: "走路", py: "zǒulù", ar: "يَمْشِي", en: "walk"},
+        {zh: "高兴", py: "gāoxìng", ar: "سَعِيدٌ", en: "happy"}
+    ];
+
+    // ================= 2. 逻辑变量 =================
+    let scores = {};
+    let currentPlayer = "";
+    let currentScore = 0;
+    let gameTimer = null;
+    let timeLeft = 25;
+    const maxTime = 25;
+    let comboCount = 0;
+    let questionStartTime = 0;
+    let isProcessing = false; // 核心逻辑锁
+    let hasWarnedSpam = false;
+
+    const gameLayer = document.getElementById('gameLayer');
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+    // ================= 3. 增强音效与特效 =================
+    
+    // 合成音效生成器 (Synth)
+    function playSound(type) {
+        if(audioCtx.state === 'suspended') audioCtx.resume();
+        const now = audioCtx.currentTime;
+        const gain = audioCtx.createGain();
+        gain.connect(audioCtx.destination);
+
+        if (type === 'correct') {
+            // 和弦：大三度 (C E G)
+            [0, 400, 700].forEach((detune, i) => {
+                const osc = audioCtx.createOscillator();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(600, now);
+                osc.detune.value = detune;
+                osc.connect(gain);
+                osc.start(now);
+                osc.stop(now + 0.3);
+            });
+            gain.gain.setValueAtTime(0.2, now);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+
+        } else if (type === 'wrong') {
+            // 错误：锯齿波下降
+            const osc = audioCtx.createOscillator();
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(150, now);
+            osc.frequency.exponentialRampToValueAtTime(50, now + 0.4);
+            osc.connect(gain);
+            
+            gain.gain.setValueAtTime(0.3, now);
+            gain.gain.linearRampToValueAtTime(0, now + 0.4);
+            osc.start(now);
+            osc.stop(now + 0.4);
+
+        } else if (type === 'combo') {
+            // Combo：方波高音
+            const osc = audioCtx.createOscillator();
+            osc.type = 'square';
+            osc.frequency.setValueAtTime(800 + (comboCount * 100), now);
+            osc.connect(gain);
+            gain.gain.setValueAtTime(0.1, now);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+            osc.start(now);
+            osc.stop(now + 0.2);
+        }
+    }
+
+    // 粒子爆炸
+    function createSparkles(x, y, color) {
+        for(let i=0; i<20; i++) {
+            const p = document.createElement('div');
+            p.className = 'sparkle';
+            p.style.left = x + 'px'; p.style.top = y + 'px';
+            p.style.borderBottomColor = color;
+            const angle = Math.random() * Math.PI * 2;
+            const velocity = Math.random() * 150 + 50;
+            p.style.setProperty('--tx', Math.cos(angle)*velocity + 'px');
+            p.style.setProperty('--ty', Math.sin(angle)*velocity + 'px');
+            document.body.appendChild(p);
+            setTimeout(()=>p.remove(), 800);
+        }
+    }
+
+    // 浮动文字特效 (+10, -5)
+    function showFloatingScore(x, y, text, color) {
+        const el = document.createElement('div');
+        el.innerText = text;
+        el.className = 'float-score';
+        el.style.left = x + 'px'; el.style.top = y + 'px';
+        el.style.color = color;
+        document.body.appendChild(el);
+        setTimeout(()=>el.remove(), 800);
+    }
+
+    // 点击波纹
+    function createShockwave(x, y, color) {
+        const el = document.createElement('div');
+        el.className = 'shockwave';
+        el.style.left = x + 'px'; el.style.top = y + 'px';
+        el.style.borderColor = color;
+        document.body.appendChild(el);
+        setTimeout(()=>el.remove(), 500);
+    }
+
+    function triggerGlitch() {
+        document.body.classList.add('glitch-active');
+        setTimeout(() => document.body.classList.remove('glitch-active'), 500);
+    }
+
+    function checkFeverMode() {
+        if(comboCount >= 5) {
+            document.body.classList.add('fever-mode');
+        } else {
+            document.body.classList.remove('fever-mode');
+        }
+    }
+
+    // ================= 4. 游戏流程 =================
+    function closeIntro() { document.getElementById('introOverlay').style.display = 'none'; showLogin(); }
+
+    function showLogin() {
+        studentList.sort();
+        let html = `
+            <div class="login-box">
+                <h1 style="color:white; font-size:3em; text-align:center;">👨‍🚀 اختر الطالب (Select Student)</h1>
+                <div class="name-grid">
+        `;
+        studentList.forEach(name => {
+            const played = scores.hasOwnProperty(name);
+            html += `<button class="btn-name ${played?'played':''}" onclick="selectStudent('${name}')">${name}</button>`;
+        });
+        html += `</div>`;
+        if(Object.keys(scores).length > 0) {
+            html += `<div style="text-align:center; margin-top:20px;"><button class="btn-start" onclick="showLeaderboard(true)">🏆 الترتيب</button></div>`;
+        }
+        html += `</div>`;
+        gameLayer.innerHTML = html;
+        document.getElementById('timerContainer').style.display = 'none';
+        document.getElementById('scoreBoard').style.display = 'none';
+        document.body.classList.remove('fever-mode');
+    }
+
+    function selectStudent(name) {
+        currentPlayer = name;
+        if(audioCtx.state === 'suspended') audioCtx.resume();
+        showPreview();
+    }
+
+    // 阿语提示
+    function showPreview() {
+        let html = `<div class="login-box" style="height:auto; min-height:600px;">
+            <h1 style="color:white; font-size:3em; text-align:center;">🚀 مراجعة (Preview)</h1>
+            
+            <div style="text-align:center; margin-bottom:20px; direction:rtl;">
+                <h2 style="color:var(--neon-gold); font-family:'Amiri'; font-size:2em; margin:0; text-shadow:0 0 10px var(--neon-gold);">
+                    📝 هذه هي الكلمات الـ 19 الأساسية للاختبار
+                </h2>
+                <p style="color:#aaa; font-size:1.2em;">(These are the 19 core vocabulary words for the exam)</p>
+            </div>
+
+            <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(220px,1fr)); gap:20px; overflow-y:auto; padding:20px; flex:1;">`;
+        vocabData.forEach(item => {
+            html += `<div style="background:white; padding:15px; border-radius:15px; font-size:1.3em;">
+                <div style="font-weight:bold;">${item.zh}</div>
+                <div style="color:#0984e3;">${item.py}</div>
+                <div style="font-family:'Amiri'; color:#d35400;">${item.ar}</div>
+            </div>`;
+        });
+        html += `</div><div style="text-align:center; margin-top:20px;"><button class="btn-start" onclick="startGame()">انطلاق (GO)</button></div></div>`;
+        gameLayer.innerHTML = html;
+    }
+
+    function startGame() {
+        currentScore = 0; timeLeft = maxTime; comboCount = 0; isProcessing = false; hasWarnedSpam = false;
+        document.body.classList.remove('fever-mode');
+        
+        document.getElementById('timerContainer').style.display = 'block';
+        document.getElementById('scoreBoard').style.display = 'block';
+        document.getElementById('scoreNum').innerText = 0;
+        document.getElementById('comboText').style.display = 'none';
+
+        startTimer();
+        nextQuestion();
+    }
+
+    function startTimer() {
+        gameTimer = setInterval(() => {
+            // 暂停扣时间，给学生缓冲
+            if(isProcessing) return; 
+
+            timeLeft -= 0.1;
+            
+            const bar = document.getElementById('timerBar');
+            const percent = (timeLeft / maxTime) * 100;
+            bar.style.width = percent + "%";
+
+            if(timeLeft < 5) {
+                bar.style.background = "#ff3838"; 
+                bar.style.boxShadow = "0 0 30px #ff3838";
+            } else if (timeLeft < 10) {
+                bar.style.background = "#f1c40f"; 
+            } else {
+                bar.style.background = "linear-gradient(90deg, var(--neon-cyan), var(--neon-pink))";
+            }
+
+            if(timeLeft<=0) endGame();
+        }, 100);
+    }
+
+    function nextQuestion() {
+        if(timeLeft<=0) return;
+        questionStartTime = Date.now();
+        isProcessing = false; // 解除锁定，允许答题
+
+        gameLayer.innerHTML = '';
+        const system = document.createElement('div');
+        system.className = 'orbit-system';
+        
+        const mode = Math.random() > 0.5 ? 0 : 1; 
+        const item = vocabData[Math.floor(Math.random()*vocabData.length)];
+        
+        let opts = [item];
+        while(opts.length < 5) {
+            let r = vocabData[Math.floor(Math.random()*vocabData.length)];
+            if(!opts.includes(r)) opts.push(r);
+        }
+        opts.sort(()=>Math.random()-0.5);
+
+        // 1. 恒星 (问题)
+        const sun = document.createElement('div');
+        sun.className = 'sun-core';
+        let sunHtml = mode === 0 
+            ? `<div class="q-main">${item.zh}</div><div class="q-sub">${item.py}</div>`
+            : `<div class="q-main arabic">${item.ar}</div><div class="q-sub" style="font-size:2em">${item.en}</div>`;
+        sun.innerHTML = sunHtml;
+        system.appendChild(sun);
+
+        // SVG 线条
+        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.setAttribute('class', 'svg-layer');
+        const centerX = 500; const centerY = 450;
+        const radius = 350; 
+
+        opts.forEach((opt, idx) => {
+            const angleDeg = (360 / 5) * idx - 90;
+            const angleRad = angleDeg * (Math.PI / 180);
+            const satX = centerX + radius * Math.cos(angleRad);
+            const satY = centerY + radius * Math.sin(angleRad);
+            
+            // 2. 卫星 (选项)
+            const wrapper = document.createElement('div');
+            wrapper.className = 'satellite-wrapper';
+            wrapper.style.left = (satX - 130) + 'px';
+            wrapper.style.top = (satY - 130) + 'px';
+
+            const body = document.createElement('div');
+            body.className = 'satellite-body';
+            body.style.animationDelay = (idx * 0.2) + 's';
+            
+            let satHtml = mode === 0
+                ? `<div class="opt-main" style="font-family:'Amiri'">${opt.ar}</div><div class="opt-sub">${opt.en}</div>`
+                : `<div class="pinyin-hl">${opt.py}</div><div class="opt-main">${opt.zh}</div>`;
+            
+            body.innerHTML = satHtml;
+            body.onclick = (e) => checkAnswer(body, opt.zh, item.zh, e.clientX, e.clientY);
+
+            wrapper.appendChild(body);
+            system.appendChild(wrapper);
+
+            // 3. 连接线
+            const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            line.setAttribute('x1', centerX); line.setAttribute('y1', centerY);
+            line.setAttribute('x2', satX); line.setAttribute('y2', satY);
+            line.setAttribute('class', 'connector');
+            svg.appendChild(line);
+        });
+
+        system.appendChild(svg);
+        gameLayer.appendChild(system);
+        system.animate([{transform: 'scale(0.8)', opacity: 0}, {transform: 'scale(1)', opacity: 1}], {duration: 300});
+    }
+
+    // 核心修复函数：checkAnswer
+    function checkAnswer(btn, sel, cor, x, y) {
+        // 1. 如果时间到，或正在处理上一题(isProcessing为真)，直接无视点击
+        if(timeLeft<=0 || isProcessing) return;
+        
+        // 2. 上锁防止连点
+        isProcessing = true;
+
+        // 防作弊 (极速点击)
+        if(Date.now() - questionStartTime < 400) {
+            clearInterval(gameTimer);
+            if(!hasWarnedSpam) {
+                hasWarnedSpam = true;
+                document.getElementById('warningOverlay').style.display = 'flex';
+            } else {
+                currentScore -= 5000; endGame();
+            }
+            return;
+        }
+
+        if(sel === cor) {
+            // 正确
+            currentScore += 10;
+            comboCount++;
+            playSound('correct');
+            
+            // 视觉特效
+            btn.classList.add('correct-anim');
+            createSparkles(x, y, '#00ff88'); 
+            createShockwave(x, y, '#00ff88'); // 波纹
+            showFloatingScore(x, y, "+10", "#00ff88"); // 浮动分
+            
+            checkFeverMode(); 
+            
+            if(comboCount >= 3) {
+                timeLeft = Math.min(timeLeft + 1.5, maxTime);
+                playSound('combo');
+                const cb = document.getElementById('comboText');
+                cb.style.display = 'block';
+                cb.innerText = `COMBO x${comboCount}`;
+            }
+            document.getElementById('scoreNum').innerText = currentScore;
+            
+            // 稍作延迟进入下一题
+            setTimeout(nextQuestion, 500);
+        } else {
+            // 错误
+            currentScore -= 5;
+            comboCount = 0;
+            playSound('wrong');
+            
+            // 视觉特效
+            btn.classList.add('wrong-anim');
+            triggerGlitch();
+            checkFeverMode();
+            createSparkles(x, y, '#ff3838');
+            createShockwave(x, y, '#ff3838'); // 波纹
+            showFloatingScore(x, y, "-5", "#ff3838"); // 浮动分
+            
+            document.getElementById('comboText').style.display = 'none';
+            document.getElementById('scoreNum').innerText = currentScore;
+            
+            // 显示正确答案
+            document.querySelectorAll('.satellite-body').forEach(el => {
+                if(el.innerHTML.includes(cor) || 
+                   (vocabData.find(v=>v.zh===cor).ar && el.innerHTML.includes(vocabData.find(v=>v.zh===cor).ar))) {
+                    el.classList.add('correct-anim');
+                }
+            });
+            
+            // 错误时给予更长的展示时间
+            setTimeout(nextQuestion, 1500);
+        }
+    }
+
+    function resumeGame() {
+        document.getElementById('warningOverlay').style.display = 'none';
+        questionStartTime = Date.now();
+        startTimer();
+        // 注意：恢复游戏时要解除锁定，否则无法继续点击
+        isProcessing = false; 
+    }
+
+    function endGame() {
+        clearInterval(gameTimer);
+        scores[currentPlayer] = currentScore;
+        showLeaderboard(false);
+    }
+
+    function showLeaderboard(isHome) {
+        document.getElementById('timerContainer').style.display = 'none';
+        document.getElementById('scoreBoard').style.display = 'none';
+        document.body.classList.remove('fever-mode');
+        
+        let html = `<div class="login-box">
+            <h1 style="color:white; text-align:center;">${isHome?'🏆 排行榜 (Leaderboard)':'🏁 游戏结束 (Game Over)'}</h1>`;
+        
+        if(!isHome) html += `<div style="text-align:center; font-size:6em; color:var(--neon-pink); font-weight:900;">${currentScore}</div>`;
+
+        let sorted = Object.keys(scores).sort((a,b)=>scores[b]-scores[a]);
+        html += `<div style="overflow-y:auto; padding:20px; text-align:right; direction:rtl; flex:1;">
+                 <table style="width:100%; color:white; font-size:1.8em; border-collapse:collapse;">
+                    <tr style="border-bottom:2px solid #555;"><th>#</th><th>الاسم</th><th>النقاط</th></tr>`;
+        sorted.forEach((n,i)=>{
+            html+=`<tr style="${n===currentPlayer&&!isHome?'color:var(--neon-cyan); font-weight:bold; background:rgba(255,255,255,0.1)':''} border-bottom:1px solid #333;">
+                <td style="padding:10px;">${i+1}</td><td style="font-family:'Amiri'">${n}</td><td>${scores[n]}</td></tr>`;
+        });
+        html += `</table></div><div style="text-align:center; margin-top:20px;"><button class="btn-start" onclick="showLogin()">🔄 التالي (Next)</button></div></div>`;
+        gameLayer.innerHTML = html;
+    }
+</script>
+</body>
+</html>

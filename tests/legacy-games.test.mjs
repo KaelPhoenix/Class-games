@@ -10,15 +10,15 @@ function element(){
  return {dataset:new Proxy({}, {set:(obj,key,value)=>(obj[key]=String(value),true)}),style:{},children,
  classList:{add:(...values)=>values.forEach(v=>classes.add(v)),remove:(...values)=>values.forEach(v=>classes.delete(v)),contains:v=>classes.has(v),toggle:v=>classes.has(v)?classes.delete(v):classes.add(v)},
  set innerHTML(value){children.length=0;this.html=value},get innerHTML(){return this.html||''},
- appendChild(child){children.push(child)},innerText:'',textContent:''};
+ appendChild(child){children.push(child)},addEventListener(){},innerText:'',textContent:''};
 }
-async function game(id){
+async function game(id, random=()=>0.9){
  const html=await readFile(new URL('../legacy/'+id+'/index.html',import.meta.url),'utf8'),elements=new Map(),timeouts=[],intervals=[];
  const get=id=>{if(!elements.has(id))elements.set(id,element());return elements.get(id)};
  const holes=[...html.matchAll(/id="(mole\d+)"/g)].map(m=>get(m[1]));
- const context=vm.createContext({document:{getElementById:get,querySelectorAll:selector=>selector==='.mole'?holes:[],createElement:element},
+ const context=vm.createContext({document:{getElementById:get,querySelectorAll:selector=>selector==='.mole'?holes:selector==='.btn-opt'?get('optionsContainer').children:[],createElement:element},
  setInterval:callback=>(intervals.push(callback),intervals.length),clearInterval(){},setTimeout:callback=>(timeouts.push(callback),timeouts.length),
- Math:Object.assign(Object.create(Math),{random:()=>0.9})});
+ Math:Object.assign(Object.create(Math),{random})});
  for(const script of html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi))vm.runInContext(script[1],context);
  return {html,context,get,holes,timeouts,intervals,read:expression=>vm.runInContext(expression,context)};
 }
@@ -63,4 +63,30 @@ test('word match: mismatches reset, six real pairs complete once and matched car
  for(const card of left){g.context.selectCard(card);g.context.selectCard(right.find(c=>c.dataset.id===card.dataset.id))}
  assert.equal(g.read('matchedCount'),6);assert.match(g.get('statusText').innerText,/全部完成/);
  g.context.selectCard(left[0]);assert.equal(g.read('matchedCount'),6);
+});
+
+test('word flip: twelve cards, self-click guard, mismatches unlock and pairs match',async()=>{
+ const g=await game('word-flip'),cards=g.get('gameBoard').children;
+ assert.equal(cards.length,12);
+ const first=cards[0],wrong=cards.find(c=>c.dataset.id!==first.dataset.id);
+ g.context.flipCard.call(first);g.context.flipCard.call(first);
+ assert.equal(g.read('lockBoard'),false);
+ g.context.flipCard.call(wrong);assert.equal(g.read('lockBoard'),true);
+ g.timeouts.shift()();assert.equal(g.read('lockBoard'),false);assert(!first.classList.contains('flipped'));
+ const pair=cards.find(c=>c!==first&&c.dataset.id===first.dataset.id);
+ g.context.flipCard.call(first);g.context.flipCard.call(pair);g.timeouts.shift()();
+ assert(first.classList.contains('matched'));assert(pair.classList.contains('matched'));assert.equal(g.read('lockBoard'),false);
+});
+test('speed challenge: original answer handlers enforce one score, wrong answers and timeout',async()=>{
+ let randomValue=0;
+ const g=await game('speed-challenge',()=>randomValue=(randomValue+0.19)%1);
+ g.context.startGame();
+ let correct=g.read('data').find(row=>row.zh===g.get('qZh').innerText),buttons=g.get('optionsContainer').children;
+ assert.equal(buttons.length,3);
+ const right=buttons.find(b=>b.innerHTML.includes(correct.ar));right.onclick();right.onclick();
+ assert.equal(g.read('score'),20);assert.equal(g.read('isAnswered'),true);assert.equal(g.get('noteBox').style.display,'block');
+ g.context.nextQuestion();correct=g.read('data').find(row=>row.zh===g.get('qZh').innerText);buttons=g.get('optionsContainer').children;
+ buttons.find(b=>!b.innerHTML.includes(correct.ar)).onclick();assert.equal(g.read('score'),20);
+ g.context.nextQuestion();for(let tick=0;tick<100;tick++)g.intervals.at(-1)();
+ assert.equal(g.read('timeLeft'),0);assert.equal(g.read('isAnswered'),true);assert.equal(g.read('score'),20);
 });

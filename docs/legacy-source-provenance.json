@@ -25,8 +25,37 @@
       "modified_time": "2026-04-20T16:22:48.927Z",
       "contains_student_records": false,
       "has_external_dependencies": false
+    },
+    {
+      "app": "word-flip",
+      "path": "legacy/word-flip/index.html",
+      "source_title": "2.1游戏.html",
+      "source_file_id": "1WKD6BkTIR1mjWNEy1LajCPpXnpSf1ynp",
+      "source_url": "https://drive.google.com/file/d/1WKD6BkTIR1mjWNEy1LajCPpXnpSf1ynp/view?usp=drivesdk",
+      "source_size_bytes": 6942,
+      "modified_time": "2026-04-20T16:22:51.163Z",
+      "contains_student_records": false,
+      "has_external_dependencies": false
+    },
+    {
+      "app": "speed-challenge",
+      "path": "legacy/speed-challenge/index.html",
+      "source_title": "极速大挑战.html",
+      "source_file_id": "1-LdioYJphfphV7X_Y6hneGK4cbEnRgLT",
+      "source_url": "https://drive.google.com/file/d/1-LdioYJphfphV7X_Y6hneGK4cbEnRgLT/view?usp=drivesdk",
+      "source_size_bytes": 10972,
+      "modified_time": "2026-04-20T16:22:49.038Z",
+      "contains_student_records": false,
+      "has_external_dependencies": false
     }
   ],
   "browser_verified": false,
-  "known_content_issue": "Original word-mole source writes the pinyin of 长 as chǎng; linguistic correction to cháng is pending in a separate reviewed change. Original source preserved."
+  "known_content_issue": "Original word-mole source writes the pinyin of 长 as chǎng; linguistic correction to cháng is pending in a separate reviewed change. Original source preserved.",
+  "duplicates": [
+    {
+      "source_file_id": "13yjYlY_OuAhCk6eVGRSLBDSJQNVEvUKW",
+      "same_as": "legacy/word-match/index.html",
+      "comparison": "exact decoded text equality"
+    }
+  ]
 }

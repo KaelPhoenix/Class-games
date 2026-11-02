@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>课堂游戏：极速大挑战</title>
+<style>
+    body {
+        font-family: 'Microsoft YaHei', sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100vh;
+        margin: 0;
+        user-select: none;
+    }
+
+    .quiz-box {
+        background: white;
+        width: 600px;
+        max-width: 90%;
+        border-radius: 20px;
+        padding: 30px;
+        text-align: center;
+        box-shadow: 0 15px 30px rgba(0,0,0,0.3);
+        color: #333;
+        position: relative;
+        overflow: hidden;
+    }
+
+    /* 倒计时条 */
+    .timer-bar {
+        position: absolute;
+        top: 0; left: 0;
+        height: 8px;
+        background: #ff7675;
+        width: 100%;
+        transition: width 0.1s linear;
+    }
+
+    .question {
+        margin-bottom: 30px;
+    }
+    .q-zh { font-size: 3.5em; font-weight: bold; color: #2d3436; }
+    .q-py { font-size: 1.5em; color: #636e72; margin-top: 10px; }
+
+    .options {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 15px;
+    }
+
+    .btn-opt {
+        background-color: #f1f2f6;
+        border: 2px solid #dfe4ea;
+        padding: 15px;
+        border-radius: 10px;
+        cursor: pointer;
+        font-size: 1.2em;
+        transition: all 0.2s;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .btn-opt:hover { background-color: #dfe4ea; transform: translateX(5px); }
+    .btn-opt:active { transform: scale(0.98); }
+
+    .opt-ar { font-family: 'Amiri', serif; font-size: 1.4em; color: #d35400; }
+    .opt-en { font-size: 0.9em; color: #7f8c8d; }
+
+    /* 正误反馈样式 */
+    .correct { background-color: #55efc4 !important; border-color: #00b894 !important; color: #006266; }
+    .wrong { background-color: #ff7675 !important; border-color: #d63031 !important; color: #630000; }
+
+    /* 备注信息 */
+    .note-box {
+        margin-top: 20px;
+        padding: 15px;
+        background-color: #fff3cd;
+        border: 1px solid #ffeeba;
+        color: #856404;
+        border-radius: 10px;
+        font-size: 0.9em;
+        display: none;
+    }
+    .ar-note { font-family: 'Amiri', serif; font-size: 1.1em; direction: rtl; display: block; margin-bottom: 5px;}
+
+    .score-display {
+        position: absolute;
+        top: 20px; right: 20px;
+        font-size: 1.5em;
+        font-weight: bold;
+    }
+
+    .btn-next {
+        margin-top: 20px;
+        padding: 12px 40px;
+        background-color: #0984e3;
+        color: white;
+        border: none;
+        border-radius: 50px;
+        font-size: 1.2em;
+        cursor: pointer;
+        display: none; /* 默认隐藏，答题后显示 */
+    }
+
+    /* --- 新增：阿语说明遮罩层 --- */
+    .intro-overlay {
+        position: fixed;
+        top: 0; left: 0; width: 100%; height: 100%;
+        background-color: rgba(44, 62, 80, 0.98);
+        z-index: 1000;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .intro-box {
+        background: white;
+        padding: 40px;
+        border-radius: 20px;
+        text-align: center;
+        max-width: 500px;
+        box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+    }
+
+    .intro-title {
+        font-family: 'Amiri', serif;
+        font-size: 2.5em;
+        color: #e74c3c;
+        margin-bottom: 20px;
+    }
+
+    .intro-text {
+        font-family: 'Amiri', serif;
+        font-size: 1.5em;
+        color: #34495e;
+        line-height: 1.8;
+        direction: rtl;
+        margin-bottom: 30px;
+    }
+
+    .btn-start {
+        font-family: 'Amiri', serif;
+        font-size: 1.5em;
+        padding: 15px 50px;
+        background-color: #e74c3c;
+        color: white;
+        border: none;
+        border-radius: 50px;
+        cursor: pointer;
+        transition: transform 0.2s;
+    }
+    .btn-start:hover { transform: scale(1.05); background-color: #c0392b; }
+
+</style>
+</head>
+<body>
+
+<div class="intro-overlay" id="introOverlay">
+    <div class="intro-box">
+        <div class="intro-title">تحدي السرعة</div>
+        <div class="intro-text">
+            هل أنت مستعد؟<br>
+            ستظهر لك كلمة صينية، وعليك اختيار <strong>المعنى الصحيح</strong> من بين الخيارات الثلاثة.<br>
+            انتبه! <strong>الوقت محدود</strong>، فكن سريعاً!
+        </div>
+        <button class="btn-start" onclick="closeIntro()">ابدأ التحدي</button>
+    </div>
+</div>
+
+<div class="score-display">Score: <span id="scoreVal">0</span></div>
+
+<div class="quiz-box" id="quizBox">
+    <div class="timer-bar" id="timerBar"></div>
+    
+    <div id="gameContent">
+        <div class="question">
+            <div class="q-zh" id="qZh">...</div>
+            <div class="q-py" id="qPy">...</div>
+        </div>
+
+        <div class="options" id="optionsContainer">
+            </div>
+
+        <div class="note-box" id="noteBox">
+            <span class="ar-note" id="noteAr"></span>
+            <span id="noteEn"></span>
+        </div>
+
+        <button class="btn-next" id="btnNext" onclick="nextQuestion()">下一题 (Next) ➡️</button>
+    </div>
+    
+    <div id="endScreen" style="display: none;">
+        <h2>游戏结束! (Game Over)</h2>
+        <p>你的得分: <span id="finalScore" style="font-size: 2em; color: #0984e3;">0</span></p>
+        <button class="btn-next" style="display:inline-block;" onclick="startGame()">再玩一次 (Replay)</button>
+    </div>
+</div>
+
+<script>
+    const data = [
+        {zh: "应该", py: "yīng gāi", ar: "يَجِبُ", en: "should", note: "فِعْلٌ، غَالِبًا يُسْتَخْدَمُ مَعَ 'أَنْ'"},
+        {zh: "冰淇淋", py: "bīng qí lín", ar: "مُثَلَّجَات", en: "ice cream", note: "يُمْكِنُ قَوْلُ 'آيْس كِرِيم' أَيْضًا"},
+        {zh: "草莓", py: "cǎo méi", ar: "فَرَاوِلَة", en: "strawberry", note: "اِسْمٌ مُؤَنَّثٌ"},
+        {zh: "更", py: "gèng", ar: "أَكْثَر", en: "even more", note: "يُسْتَخْدَمُ لِلتَّفْضِيلِ"},
+        {zh: "芒果", py: "máng guǒ", ar: "مَانْجُو", en: "mango", note: "كَلِمَةٌ دَخِيلَةٌ، نُطْقُهَا مُشَابِهٌ"},
+        {zh: "马上", py: "mǎ shàng", ar: "حَالًا", en: "immediately", note: "يُمْكِنُ قَوْلُ 'فَوْرًا' أَيْضًا"}
+    ];
+
+    let currentQ = 0;
+    let score = 0;
+    let timer = null;
+    let timeLeft = 100; // 进度条百分比
+    let isAnswered = false;
+
+    function closeIntro() {
+        document.getElementById('introOverlay').style.display = 'none';
+        startGame();
+    }
+
+    function startGame() {
+        score = 0;
+        document.getElementById('scoreVal').innerText = score;
+        document.getElementById('endScreen').style.display = 'none';
+        document.getElementById('gameContent').style.display = 'block';
+        nextQuestion();
+    }
+
+    function nextQuestion() {
+        isAnswered = false;
+        timeLeft = 100;
+        document.getElementById('timerBar').style.width = '100%';
+        document.getElementById('noteBox').style.display = 'none';
+        document.getElementById('btnNext').style.display = 'none';
+        
+        // 随机选一个词作为题目
+        const correctItem = data[Math.floor(Math.random() * data.length)];
+        
+        // 显示题目
+        document.getElementById('qZh').innerText = correctItem.zh;
+        document.getElementById('qPy').innerText = correctItem.py;
+        
+        // 准备选项：1个正确 + 2个错误
+        let options = [correctItem];
+        while (options.length < 3) {
+            let randomItem = data[Math.floor(Math.random() * data.length)];
+            if (!options.includes(randomItem)) {
+                options.push(randomItem);
+            }
+        }
+        
+        // 打乱选项
+        options.sort(() => 0.5 - Math.random());
+        
+        // 渲染选项
+        const container = document.getElementById('optionsContainer');
+        container.innerHTML = '';
+        
+        options.forEach(opt => {
+            const btn = document.createElement('div');
+            btn.className = 'btn-opt';
+            btn.innerHTML = `<span class="opt-ar">${opt.ar}</span><span class="opt-en">${opt.en}</span>`;
+            
+            btn.onclick = () => {
+                if(isAnswered) return;
+                checkAnswer(btn, opt, correctItem);
+            };
+            
+            container.appendChild(btn);
+        });
+
+        // 启动倒计时 (5秒)
+        if(timer) clearInterval(timer);
+        timer = setInterval(() => {
+            timeLeft -= 1; // 每50ms减1，共5000ms
+            document.getElementById('timerBar').style.width = timeLeft + '%';
+            if(timeLeft <= 0) {
+                clearInterval(timer);
+                if(!isAnswered) handleTimeOut(correctItem);
+            }
+        }, 50); // 50ms tick
+    }
+
+    function checkAnswer(btn, selected, correct) {
+        isAnswered = true;
+        clearInterval(timer);
+        
+        if (selected.zh === correct.zh) {
+            // 答对了
+            btn.classList.add('correct');
+            score += 10 + Math.floor(timeLeft / 10); // 剩余时间越多分越高
+            document.getElementById('scoreVal').innerText = score;
+        } else {
+            // 答错了
+            btn.classList.add('wrong');
+            // 标出正确答案
+            const allBtns = document.querySelectorAll('.btn-opt');
+            allBtns.forEach(b => {
+                if(b.innerHTML.includes(correct.ar)) b.classList.add('correct');
+            });
+        }
+        
+        showNote(correct);
+    }
+
+    function handleTimeOut(correct) {
+        isAnswered = true;
+        // 标出正确答案
+        const allBtns = document.querySelectorAll('.btn-opt');
+        allBtns.forEach(b => {
+            if(b.innerHTML.includes(correct.ar)) b.classList.add('correct');
+        });
+        showNote(correct);
+    }
+
+    function showNote(item) {
+        const noteBox = document.getElementById('noteBox');
+        document.getElementById('noteAr').innerText = "备注: " + item.note;
+        document.getElementById('noteEn').innerText = ""; 
+        noteBox.style.display = 'block';
+        document.getElementById('btnNext').style.display = 'inline-block';
+    }
+</script>
+</body>
+</html>

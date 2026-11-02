@@ -15,3 +15,9 @@ The migration PR runs six checks for script parsing, self-contained documents, u
 
 ## Codex
 Select the migration branch until its PR is reviewed and merged. Read AGENTS.md, create a task branch, run npm test and submit a PR. This migration does not configure Codex account access or deploy GitHub Pages.
+
+## Reproducible HTTP development
+
+Use Node 24. Run `npm ci --ignore-scripts`, then `npm start` for grade 8 or `npm run start:grade9` for grade 9, at http://127.0.0.1:4173/ . PORT and HOST configure the local preview. Each command serves only that game's folder; repository files and legacy 8.1.html are not served. There are no third-party runtime dependencies and no build step.
+
+`npm test` includes real HTTP startup and asset tests, read-only routing checks and both grade entries, alongside the original six syntax/privacy tests. These tests do not prove browser game play or difficulty behavior. Source class B: text recovery from historical HTML, with synthetic rosters. The latest PR and Actions status are authoritative; Codex account-level environment selection remains unverified. No Pages deployment is part of this work.

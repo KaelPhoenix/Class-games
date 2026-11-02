@@ -1,0 +1,2084 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta name="demo-data" content="synthetic-only; no real student records">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>星际轨道 · 九年级四课三班版 V23</title>
+    <style>
+        /* Offline-first: use installed Arabic fonts. */
+
+        :root {
+            --neon-blue: #00d8ff; --neon-pink: #ff007f; --neon-gold: #ffcc00;
+            --neon-green: #00ff66; --neon-red: #ff3333; --bg-dark: #020205;
+            --text-glow: 0 0 8px rgba(255,255,255,0.8), -1px -1px 0 #000, 1px -1px 0 #000;
+            --panel-bg: linear-gradient(145deg, rgba(10, 10, 25, 0.95) 0%, rgba(2, 2, 8, 0.98) 100%);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; user-select: none; }
+        body { background-color: var(--bg-dark); color: white; font-family: 'Segoe UI', 'Tajawal', 'Sakkal Majalla', Tahoma, sans-serif; overflow: hidden; display: flex; justify-content: center; align-items: center; height: 100vh; perspective: 1200px; transition: box-shadow 0.3s; }
+
+        /* ================= 连击光晕 ================= */
+        body.combo-tier-1 { box-shadow: inset 0 0 80px rgba(0, 216, 255, 0.3); }
+        body.combo-tier-2 { box-shadow: inset 0 0 120px rgba(255, 204, 0, 0.4); }
+        body.combo-tier-3 { box-shadow: inset 0 0 150px rgba(255, 0, 127, 0.5); animation: pulseCombo 1s infinite alternate; }
+        @keyframes pulseCombo { 0% { box-shadow: inset 0 0 150px rgba(255, 0, 127, 0.5); } 100% { box-shadow: inset 0 0 200px rgba(255, 0, 127, 0.8); } }
+
+        /* ================= Canvas 粒子 ================= */
+        #vfx-canvas { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 999; pointer-events: none; mix-blend-mode: screen;}
+
+        /* ================= 独立环境背景 ================= */
+        .env-bg { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: -100; opacity: 0; transition: opacity 1.5s ease-in-out; pointer-events: none; overflow: hidden;}
+        .env-bg.active { opacity: 1; z-index: -99;}
+        #bg-tier-1 { background: radial-gradient(circle at center, #05040f 0%, #000 100%); }
+        #bg-tier-1 .nebula-inner { position: absolute; width: 200%; height: 200%; top: -50%; left: -50%; background: radial-gradient(circle at 20% 40%, rgba(60, 0, 200, 0.15) 0%, transparent 50%), radial-gradient(circle at 80% 60%, rgba(0, 150, 255, 0.12) 0%, transparent 50%); filter: blur(60px); animation: nebulaMove 25s ease-in-out infinite alternate; }
+        #bg-tier-2 { background: radial-gradient(circle at center, #1a0011 0%, #050000 100%); }
+        #bg-tier-2 .nebula-inner { position: absolute; width: 200%; height: 200%; top: -50%; left: -50%; background: radial-gradient(circle at 30% 30%, rgba(255, 0, 100, 0.2) 0%, transparent 60%), radial-gradient(circle at 70% 70%, rgba(200, 0, 50, 0.15) 0%, transparent 60%); filter: blur(50px); animation: nebulaMove 20s ease-in-out infinite alternate; }
+        #bg-tier-3 { background: radial-gradient(circle at center, #300000 0%, #0a0000 100%); box-shadow: inset 0 0 150px rgba(255, 0, 0, 0.8); }
+        #bg-tier-3 .nebula-inner { position: absolute; width: 200%; height: 200%; top: -50%; left: -50%; background: radial-gradient(circle at center, rgba(255, 30, 0, 0.3) 0%, transparent 70%); filter: blur(40px); animation: nebulaMoveFast 5s infinite alternate; }
+        #bg-tier-boss { background: radial-gradient(circle at center, #400000 0%, #110000 100%); box-shadow: inset 0 0 200px rgba(255, 0, 0, 0.9); }
+        #bg-tier-boss .nebula-inner { position: absolute; width: 200%; height: 200%; top: -50%; left: -50%; background: radial-gradient(circle at 20% 80%, rgba(255, 0, 0, 0.4) 0%, transparent 60%), radial-gradient(circle at 80% 20%, rgba(200, 0, 0, 0.3) 0%, transparent 60%); filter: blur(30px); animation: nebulaMoveFast 2s infinite alternate; }
+
+        @keyframes nebulaMove { 0% { transform: translate(0, 0) scale(1); } 100% { transform: translate(5%, -5%) scale(1.1); } }
+        @keyframes nebulaMoveFast { 0% { transform: scale(1) rotate(0deg); } 100% { transform: scale(1.1) rotate(5deg); } }
+
+        /* 环境渲染 */
+        body.tier-3 .orbit-path, body.boss-mode .orbit-path { border-color: rgba(255, 50, 0, 0.9); box-shadow: 0 0 80px rgba(255, 0, 0, 0.6); }
+        body.tier-3 .spaceship, body.boss-mode .spaceship { box-shadow: 0 0 80px rgba(255, 50, 0, 0.7), inset 0 0 50px rgba(0,0,0,0.9); border-color: var(--neon-red); }
+        body.tier-3 .spaceship::before, body.boss-mode .spaceship::before { border-color: rgba(255, 50, 0, 0.8); }
+
+        /* 流星与跃迁线 */
+        .stars-container { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: -90; pointer-events: none; perspective: 800px; }
+        .stars, .stars-fast { position: absolute; top: 50%; left: 50%; width: 2px; height: 2px; background: transparent; box-shadow: 0 0 #fff; animation: jump 10s linear infinite; }
+        .stars-fast { animation: jump 5s linear infinite; }
+        body.boss-mode .stars { animation: jump 3s linear infinite; }
+        body.boss-mode .stars-fast { animation: jump 1.5s linear infinite; }
+        body.hyper-jump .stars, body.hyper-jump .stars-fast { width: 3px; height: 150px; border-radius: 2px; animation: hyperspace 0.4s linear infinite; filter: drop-shadow(0 0 10px #fff); }
+        body.hyper-jump .env-bg { filter: brightness(2) contrast(150%); }
+        @keyframes jump { 0% { transform: translateZ(-1000px) scale(1); opacity: 0; } 50% { opacity: 1; } 100% { transform: translateZ(800px) scale(5); opacity: 0; } }
+        @keyframes hyperspace { 0% { transform: translateZ(-1000px) scale(1); opacity: 0; } 50% { opacity: 1; } 100% { transform: translateZ(800px) scale(15); opacity: 0; } }
+
+        /* ================= Boss 实体 ================= */
+        #boss-entity {
+            position: absolute; top: 50px; left: 50%; transform: translateX(-50%);
+            width: 180px; height: 180px; border-radius: 50%;
+            background: radial-gradient(circle at 30% 30%, #ff0055, #330000 80%);
+            box-shadow: 0 0 60px #ff0055, inset 0 0 40px #000; display: none; align-items: center; justify-content: center; flex-direction: column;
+            color: white; z-index: 15; border: 4px dashed var(--neon-gold);
+            animation: bossFloat 3s ease-in-out infinite alternate, bossPulse 1s infinite alternate; pointer-events: none;
+        }
+        #boss-entity.active { display: flex; }
+        .boss-icon { font-size: 5rem; text-shadow: var(--text-glow); animation: counterRotate 10s linear infinite;}
+        .boss-hp { font-size: 2.2rem; font-weight: 900; color: var(--neon-gold); text-shadow: var(--text-glow); margin-top: 5px; background: rgba(0,0,0,0.6); padding: 0 10px; border-radius: 10px;}
+        .boss-hit-anim { animation: bossHitShake 0.3s !important; filter: brightness(2) invert(0.2); }
+        @keyframes bossHitShake { 0%, 100% { transform: translateX(-50%) scale(1); } 50% { transform: translateX(-50%) scale(1.1) rotate(5deg); } }
+        @keyframes bossFloat { 0% { top: 30px; } 100% { top: 60px; } }
+        @keyframes bossPulse { 0% { box-shadow: 0 0 50px #ff0055, inset 0 0 30px #000; } 100% { box-shadow: 0 0 100px #ff0055, inset 0 0 60px #000; border-color: #ff3333;} }
+        @keyframes counterRotate { 100% { transform: rotate(-360deg); } }
+
+        /* ================= 视觉特效 ================= */
+        .radar-highlight-overlay { pointer-events: none !important; position: absolute; top: -10px; left: -10px; right: -10px; bottom: -10px; border-radius: inherit; border: 6px solid var(--neon-green); box-shadow: 0 0 60px var(--neon-green), inset 0 0 30px var(--neon-green); animation: radarPulseAnim 0.5s infinite alternate; z-index: -1; }
+        @keyframes radarPulseAnim { 0% { opacity: 0.5; transform: scale(1);} 100% { opacity: 1; transform: scale(1.08);} }
+
+        .screen-shake-light { animation: shakeLight 0.3s both; }
+        .screen-shake-heavy { animation: shakeHeavy 0.5s both; }
+        @keyframes shakeLight { 10%, 90% { transform: translate3d(-2px, 2px, 0); } 30%, 70% { transform: translate3d(-5px, 5px, 0); } }
+        @keyframes shakeHeavy { 0% { filter: drop-shadow(10px 0 0 red); transform: translate3d(-10px, 10px, 0) scale(1.02); } 20% { transform: translate3d(15px, -15px, 0) scale(1.04); } 100% { transform: translate3d(0, 0, 0) scale(1); } }
+        .screen-flash { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #fff; z-index: 9999; pointer-events: none; opacity: 0; animation: flashAnim 0.3s ease-out; mix-blend-mode: overlay; }
+        @keyframes flashAnim { 0% { opacity: 1; } 100% { opacity: 0; } }
+        .floating-text { position: fixed; font-size: 5rem; font-weight: 900; pointer-events: none; z-index: 1000; text-shadow: var(--text-glow); animation: floatUpHeavy 1.2s forwards; white-space: nowrap;}
+        @keyframes floatUpHeavy { 0% { transform: translate(-50%, 0) scale(0.2); opacity: 1; } 15% { transform: translate(-50%, -40px) scale(1.4); } 100% { transform: translate(-50%, -200px) scale(0.8); opacity: 0; } }
+
+        /* ================= 界面 UI ================= */
+        .screen { position: absolute; width: 90%; max-width: 1100px; text-align: center; background: var(--panel-bg); padding: 30px; border-radius: 15px; border: 2px solid rgba(0, 216, 255, 0.3); box-shadow: 0 0 50px rgba(0, 216, 255, 0.15), inset 0 0 30px rgba(0,0,0,0.8); backdrop-filter: blur(20px); z-index: 100; opacity: 0; pointer-events: none; transform: translateY(30px) scale(0.95); transition: all 0.4s; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .active { opacity: 1; pointer-events: auto; transform: translateY(0) scale(1); }
+        h1 { font-size: 3.5rem; text-shadow: var(--text-glow), 0 0 30px var(--neon-blue); margin-bottom: 5px; font-weight: 900;}
+        h2 { font-size: 1.8rem; text-shadow: var(--text-glow), 0 0 20px var(--neon-pink); margin-bottom: 15px; font-weight: bold;}
+        select, button { padding: 15px 30px; font-size: 1.5rem; font-weight: 900; margin: 10px; border-radius: 8px; border: 2px solid var(--neon-pink); background: rgba(20, 0, 30, 0.6); color: white; cursor: pointer; text-shadow: 2px 2px 4px #000; box-shadow: 0 0 20px rgba(255, 0, 127, 0.4); transition: all 0.2s; text-transform: uppercase; }
+        select { background: #0a0a14; width: 90%; text-align: center; border-color: var(--neon-blue); font-size: 1.4rem;}
+        button:hover { background: var(--neon-pink); box-shadow: 0 0 60px var(--neon-pink); transform: translateY(-4px) scale(1.05); }
+
+        .changelog { background: rgba(0,0,0,0.5); border-left: 5px solid var(--neon-gold); border-right: 5px solid var(--neon-gold); padding: 15px; margin: 5px 0 20px 0; border-radius: 8px; font-size: 1.1rem; text-align: left; width: 100%; box-shadow: inset 0 0 20px rgba(255, 215, 0, 0.1);}
+        .changelog h3 { color: var(--neon-gold); margin-bottom: 5px; text-align: center; font-size: 1.3rem;}
+        .changelog ul { list-style-type: none; }
+        .changelog li { margin-bottom: 5px; font-weight: bold; line-height: 1.4;}
+        .ar-desc { color: #ccc; font-family: 'Tajawal', sans-serif; display: block; text-align: right; font-size: 1rem;}
+
+        .relic-container { display: flex; gap: 15px; justify-content: center; margin-top: 15px; width: 100%; flex-wrap: wrap;}
+        .relic-card { background: rgba(0, 0, 0, 0.7); border: 2px solid var(--neon-blue); padding: 15px; border-radius: 12px; width: 300px; cursor: pointer; transition: 0.3s; box-shadow: inset 0 0 20px rgba(0,216,255,0.1); display: flex; flex-direction: column; align-items: center; justify-content: flex-start; }
+        .relic-card:hover { transform: translateY(-10px) scale(1.05); box-shadow: 0 0 40px var(--neon-gold); border-color: var(--neon-gold); background: rgba(30, 20, 0, 0.8);}
+        .relic-icon { font-size: 3.5rem; margin-bottom: 5px;}
+        .relic-title { color: var(--neon-gold); font-size: 1.3rem; margin-bottom: 5px; font-weight: 900; }
+        .relic-buff { color: var(--neon-green); font-size: 0.95rem; margin-bottom: 5px; font-weight: bold;}
+        .relic-debuff { color: var(--neon-red); font-size: 0.95rem; margin-bottom: 5px; font-weight: bold;}
+
+        /* HUD */
+        #game-screen { background: transparent; border: none; box-shadow: none; width: 100vw; height: 100vh; padding: 0; z-index: 10; justify-content: flex-start;}
+        .hud-top { width: 100%; display: flex; flex-direction: column; align-items: center; padding-top: 15px; z-index: 5; pointer-events: none; }
+        .hud-wave-info { font-size: 2rem; color: white; text-shadow: var(--text-glow); margin-bottom: 5px; font-weight: bold; background: rgba(0,0,0,0.6); padding: 5px 25px; border-radius: 20px; border: 2px solid var(--neon-gold); box-shadow: 0 0 20px rgba(255, 204, 0, 0.3); transition: 0.3s;}
+        .boss-warning-hud { border-color: var(--neon-red) !important; color: var(--neon-red) !important; box-shadow: 0 0 30px var(--neon-red) !important; animation: pulseWarning 0.5s infinite alternate; }
+        @keyframes pulseWarning { 0% { transform: scale(1); } 100% { transform: scale(1.1); } }
+
+        .score-board { display: flex; gap: 40px; font-size: 2.2rem; font-weight: 900; color: var(--neon-blue); text-shadow: var(--text-glow); margin-bottom: 10px; align-items: center;}
+        .hp-ui { color: #ff3366; font-size: 2.2rem; text-shadow: var(--text-glow), 0 0 15px #ff3366; letter-spacing: 5px;}
+        .fuse-container { width: 85%; max-width: 850px; height: 20px; background: rgba(0,0,0,0.9); border: 2px solid #444; border-radius: 10px; position: relative; overflow: hidden; }
+        .fuse-bar { width: 100%; height: 100%; background: linear-gradient(90deg, #ff0000, #ff8800, #ffea00); transition: width 0.1s linear; }
+
+        /* 游戏区域与空间站 */
+        .game-area { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 20; pointer-events: none; }
+        .orbit-path { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); border-radius: 50%; border: 2px dashed rgba(0, 216, 255, 0.3); box-shadow: 0 0 40px rgba(0, 216, 255, 0.1), inset 0 0 40px rgba(0, 216, 255, 0.1); pointer-events: none; z-index: 1; animation: spinOrbit 30s linear infinite;}
+        @keyframes spinOrbit { 0% { transform: translate(-50%, -50%) rotate(0deg); } 100% { transform: translate(-50%, -50%) rotate(360deg); } }
+
+        .spaceship { position: absolute; transform: translate(-50%, -50%); width: 200px; height: 200px; background: radial-gradient(circle at 50% 50%, #001a33 0%, #000a14 80%); border-radius: 50%; display: flex; justify-content: center; align-items: center; flex-direction: column; box-shadow: 0 0 60px rgba(0, 216, 255, 0.4), inset 0 0 50px rgba(0,0,0,0.9); font-weight: 900; text-align: center; text-shadow: var(--text-glow); z-index: 5; border: 2px solid transparent; pointer-events: none; transition: 0.3s;}
+        .spaceship.solved { filter: grayscale(1) opacity(0.5); box-shadow: 0 0 20px var(--neon-green); border-color: var(--neon-green);}
+        .spaceship::before { content: ''; position: absolute; top: -15px; left: -15px; right: -15px; bottom: -15px; border: 3px dashed rgba(0, 216, 255, 0.6); border-radius: 50%; animation: spinOuter 12s linear infinite; z-index: -1; }
+        @keyframes spinOuter { 100% { transform: rotate(360deg); } } 
+        .ship-recoil { transform: translate(-50%, -40%) scale(0.85) rotateX(20deg) !important; filter: brightness(2); }
+        .ship-shudder { animation: shudderAnim 0.2s infinite !important; filter: contrast(200%) hue-rotate(90deg); }
+        @keyframes shudderAnim { 0%,100%{transform:translate(-50%,-50%)} 25%{transform:translate(-55%,-45%)} 50%{transform:translate(-45%,-55%)} }
+
+        /* ================= 陨石核心：已移除 CSS 动画干扰，依靠 JS 绝对控制 ================= */
+        .meteorite { 
+            position: absolute; width: 150px; height: 150px; border-radius: 43% 57% 65% 35% / 45% 45% 55% 55%; 
+            background: radial-gradient(circle at 30% 30%, #3a3a4a 0%, #101015 80%); 
+            box-shadow: inset 10px 10px 20px rgba(255, 255, 255, 0.1), inset -15px -15px 30px rgba(0, 0, 0, 0.9), 0 0 20px rgba(0,0,0,0.8); 
+            display: flex; justify-content: center; align-items: center; text-align: center; flex-direction: column; 
+            cursor: pointer; font-weight: 900; text-shadow: var(--text-glow); z-index: 10; pointer-events: auto; 
+            will-change: transform, left, top; border: 4px solid transparent; transition: border-color 0.2s;
+        }
+        .meteorite:hover { filter: brightness(1.3); border-color: var(--neon-pink); z-index: 15;}
+
+        /* UI 表格 */
+        .preview-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 15px; font-size: 1.2rem; text-align: left; width: 100%;}
+        .preview-item { background: rgba(255,255,255,0.05); padding: 8px; border-radius: 8px; border: 1px solid #444; font-weight: bold;}
+        table { width: 100%; margin-top: 25px; border-collapse: separate; border-spacing: 0 6px; font-size: 1.5rem; font-weight: bold;}
+        th, td { border: none; padding: 12px; text-shadow: 1px 1px 2px #000;}
+        th { background: rgba(0, 216, 255, 0.2); color: var(--neon-gold); border-bottom: 3px solid var(--neon-blue); border-radius: 6px 6px 0 0;}
+        td { background: rgba(255,255,255,0.05); border-bottom: 1px solid rgba(0,0,0,0.6);}
+        .result-btns { display: flex; gap: 20px; margin-top: 15px; flex-wrap: wrap; justify-content: center; }
+    
+        .screen:not(.active) { visibility:hidden; }
+        .screen:not(#game-screen) { max-height:90vh; overflow-y:auto; }
+        .teacher-tools { position:fixed; right:8px; bottom:8px; z-index:1100; }
+        .teacher-tools button { font-size:16px; padding:8px 12px; margin:3px; }
+        #pause-overlay { position:fixed; inset:0; background:#020205ee; z-index:1090; text-align:center; padding-top:30vh; }
+        #pause-overlay[hidden] { display:none; }
+        #storage-status { position:fixed; bottom:5px; left:5px; z-index:1200; color:#ffcc00; font-size:14px; }
+        [dir="rtl"], .ar-desc, .ar-text { direction:rtl; unicode-bidi:isolate; font-family:Tajawal,Tahoma,Arial,sans-serif!important; }
+        .meteorite { margin:0; padding:8px; text-transform:none; font-family:inherit; }
+        .meteorite:focus-visible, button:focus-visible, .relic-card:focus-visible { outline:4px solid white; outline-offset:5px; }
+        .meteorite > div:first-child { max-width:100%; overflow-wrap:anywhere; }
+        .spaceship > div { max-width:100%; overflow-wrap:anywhere; }
+        body.paused * { animation-play-state:paused!important; }
+        @media(max-width:800px) { .score-board { gap:12px; } .score-board,.hp-ui { font-size:1.1rem; } .hud-wave-info { font-size:1.2rem; } .preview-grid { grid-template-columns:repeat(2,1fr); } h1 {font-size:2rem;} .screen {padding:15px;} }
+        @media(prefers-reduced-motion:reduce) { *,*::before {animation:none!important; transition:none!important;} }
+
+        /* V14: Arabic and pinyin are the visual anchors; desktop minimum is 54px. */
+        :root { --study-ar-size:clamp(54px,4.3vw,76px); --study-py-size:clamp(54px,4vw,68px); --game-ar-size:clamp(54px,3.5vw,66px); --game-py-size:clamp(54px,3.5vw,64px); }
+        body { min-height:100dvh; }
+        button,select { font-family:inherit; text-transform:none; }
+        #login-screen {max-width:1050px;}
+        .grade9-intro { text-align:center; padding:20px; }
+        .grade9-intro h2 { font-size:clamp(36px,3.5vw,52px); color:#9cecff; line-height:1.4; }
+        .scope-ar {font-size:32px; color:#ffdf75; line-height:1.5;}
+        .grade9-intro p {margin:8px 0;}
+        .instruction-ar {font-size:26px; line-height:1.6;}
+        .release-tag {font-size:16px; color:#a4bbd5; letter-spacing:1px; margin-bottom:12px;}
+        .scope-stats {display:flex;justify-content:center;flex-wrap:wrap;gap:10px;margin:18px 0;}
+        .scope-stats span {padding:8px 16px;border:1px solid #34536b;border-radius:99px;background:#081a29;color:#e5f7ff;font-size:20px;}
+        #student-select {font-size:26px;text-shadow:none;}
+        #preview-screen {width:95vw;max-width:1500px;height:calc(100dvh - 44px);padding:18px 24px;justify-content:flex-start;overflow:hidden;}
+        .study-heading {width:100%;display:flex;justify-content:space-between;align-items:center;gap:20px;text-align:left;}
+        .study-heading h2 {margin:0;color:#9cecff;font-size:34px;}
+        .study-heading p {font-size:18px;color:#b5c5db;}
+        #study-student {font-size:20px;color:#d2ecff;max-width:45%;}
+        .study-tabs {display:flex;justify-content:center;gap:8px;flex-wrap:wrap;width:100%;margin:12px 0;}
+        .study-tabs button {font-size:20px;padding:9px 16px;margin:0;border-color:#30455e;box-shadow:none;background:#0a1526;}
+        .study-tabs button.selected {border-color:#00d8ff;background:#093445;color:white;box-shadow:0 0 18px #00d8ff33;}
+        .study-tabs span {font-size:24px;margin-left:8px;}
+        .study-viewport {flex:1;min-height:0;width:100%;overflow:auto;padding:8px;scrollbar-color:#00b8d4 #081220;}
+        .study-viewport.two-cards {display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:stretch;}
+        .study-card {background:radial-gradient(ellipse at top right,#0a3449,#06101f 70%);border:2px solid #197793;border-radius:22px;padding:24px;display:flex;flex-direction:column;justify-content:center;gap:18px;min-height:100%;text-align:center;box-shadow:inset 0 0 35px #00c8ff0e,0 0 18px #00c8ff12;}
+        .study-label {font-size:20px;color:#94b7d1;line-height:1.4;}
+        .study-ar {color:#79efff;font-size:var(--study-ar-size);font-weight:900;line-height:1.5;text-shadow:0 0 16px #00c8ff33;}
+        .study-py {color:#ffe078;font-size:var(--study-py-size);font-weight:800;line-height:1.3;overflow-wrap:normal;}
+        .study-ch {color:#f0f5ff;font-size:clamp(30px,2.5vw,42px);line-height:1.4;}
+        .study-pagination {display:flex;align-items:center;justify-content:center;gap:22px;flex-shrink:0;width:100%;}
+        .study-pagination button {font-size:18px;padding:8px 14px;margin:10px 0;border-color:#264f66;box-shadow:none;}
+        .study-pagination button:disabled {opacity:.35;cursor:default;transform:none;}
+        #study-progress {font-size:20px;color:#a6c9de;min-width:70px;}
+        .study-actions {display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:8px;width:100%;flex-shrink:0;}
+        .study-actions label {font-size:16px;color:#c1cfdb;}
+        .study-actions select {width:auto;max-width:300px;font-size:18px;padding:10px;margin:0;}
+        .study-actions button {font-size:20px;padding:10px 16px;margin:0;}
+        .study-actions .secondary {border-color:#344a60;box-shadow:none;background:#0a1526;}
+        #game-screen {max-width:none;transform:none;}
+        .hud-top {position:relative;z-index:30;}
+        .score-board {font-size:24px;gap:30px;margin:8px 0;}
+        .hp-ui {font-size:26px;letter-spacing:0;}
+        .hud-wave-info {font-size:26px;}
+        .game-area {z-index:20;}
+        .quiz-column {pointer-events:none;}
+        .question-instruction {color:#bfe8ff;text-align:center;font-size:22px;line-height:1.5;}
+        .orbit-column .question-instruction {position:absolute;top:145px;left:0;width:100%;}
+        .spaceship {padding:16px;border:2px solid #127a99;border-radius:24px;gap:10px;}
+        .question-ar,.answer-ar {color:#89f1ff;font-size:var(--game-ar-size);font-weight:900;line-height:1.4;text-shadow:0 0 15px #00c8ff44;}
+        .question-py,.answer-py {color:#ffe073;font-size:var(--game-py-size);font-weight:900;line-height:1.25;white-space:normal;}
+        .question-ch,.answer-ch {color:#f4f7ff;font-size:34px;line-height:1.35;font-weight:800;}
+        .meteorite {border-radius:24px;border:2px solid #44507b;background:radial-gradient(ellipse at top left,#1d2750,#090f20 80%);padding:18px 16px;box-shadow:inset 0 0 25px #476adc22,0 0 20px #0a1129;}
+        .meteorite:hover {border-color:#ff70bc;filter:none;background:radial-gradient(ellipse at top left,#402044,#100b20 80%);}
+        .answer-content {width:100%;position:relative;display:flex;flex-direction:column;justify-content:center;gap:6px;}
+        .option-letter {position:absolute;left:-8px;top:-10px;color:#94abc7;font-size:18px;line-height:1;}
+        .orbit-path {width:70vw;height:48vh;}
+        .question-grid-mode .orbit-path {width:80vw;height:55vh;opacity:.25;}
+        .question-grid-mode #game-area {padding:145px 28px 65px;display:grid;grid-template-columns:1fr;gap:24px;}
+        .question-grid-mode #game-area.dual-layout {grid-template-columns:1fr 1fr;}
+        .grid-column {display:flex;flex-direction:column;min-height:0;gap:14px;position:relative;}
+        .grid-column .spaceship {pointer-events:auto;position:relative;top:auto;left:auto;transform:none;width:100%;height:auto;min-height:100px;flex-shrink:0;max-height:48%;overflow:auto;}
+        .grid-column .spaceship::before {display:none;}
+        .grid-column .answer-options {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;min-height:0;flex:1;overflow:auto;align-content:start;}
+        .grid-column .meteorite {position:relative;top:auto;left:auto;width:100%;height:auto;min-height:180px;transform:none;flex-shrink:0;will-change:auto;}
+        .dual-layout .grid-column .answer-options {grid-template-columns:1fr;gap:10px;}
+        .dual-layout .grid-column .meteorite {min-height:105px;padding:12px 25px;}
+        .teacher-tools {right:8px;bottom:8px;}
+        #boss-entity {top:4px!important;width:92px;height:92px;border-width:2px;left:50%;z-index:32;opacity:.85;}
+        .boss-icon {font-size:40px;}.boss-hp {font-size:16px;margin-top:0;}
+        body.boss-mode .hud-top {padding-right:100px;align-items:flex-start;padding-left:20px;}
+        body.boss-mode .fuse-container {width:100%;}
+        .floating-text {font-size:clamp(28px,4vw,60px);max-width:90vw;white-space:pre-line;text-align:center;}
+        @media(max-width:1099px),(max-height:699px) {
+            :root {--study-ar-size:clamp(42px,5.3vw,62px);--study-py-size:clamp(40px,5vw,58px);--game-ar-size:clamp(40px,4vw,56px);--game-py-size:clamp(40px,4vw,54px);}
+            .question-grid-mode #game-area {padding-top:135px;}
+            .grid-column .answer-options {grid-template-columns:1fr;}
+            .grid-column .meteorite {min-height:100px;}
+            .grid-column .spaceship {max-height:45%;}
+        }
+        @media(max-width:700px) {
+            #preview-screen {padding:12px;height:calc(100dvh - 18px);}
+            .study-heading h2 {font-size:25px;}#study-student {font-size:15px;}
+            .study-tabs {gap:5px;}.study-tabs button {font-size:14px;padding:5px;}.study-tabs span {font-size:18px;}
+            .study-viewport.two-cards {grid-template-columns:1fr;}
+            .study-card {padding:16px;gap:12px;min-height:240px;}
+            .study-actions label {display:none;}.study-actions button {font-size:15px;padding:7px;}.study-actions select {font-size:15px;max-width:210px;padding:7px;}
+            .study-pagination {gap:10px;}.study-pagination button {font-size:14px;}
+            .question-grid-mode #game-area {padding:125px 12px 62px;gap:10px;overflow:auto;}
+            .question-grid-mode #game-area.dual-layout {grid-template-columns:1fr;}
+            .grid-column .spaceship {max-height:none;}
+            .grid-column .answer-options {max-height:38vh;min-height:120px;flex:none;}
+            .score-board {font-size:16px;gap:12px;}.hp-ui {font-size:17px;}.hud-wave-info {font-size:18px;}
+            .question-ch,.answer-ch {font-size:28px;}
+            body.boss-mode .hud-top {padding-right:75px;padding-left:8px;}#boss-entity {left:auto;right:8px;transform:none;width:62px;height:62px;}.boss-icon {font-size:25px;}.boss-hp {font-size:10px;}
+        }
+
+        /* V17 class selection and lesson filtering. */
+        #login-screen {max-height:96dvh;overflow-y:auto;justify-content:flex-start;padding:20px;}
+        #login-screen h1 {font-size:clamp(28px,3vw,46px);margin:8px 0;}
+        .grade9-intro {padding:12px;margin-bottom:12px;}
+        .grade9-intro h2 {font-size:clamp(28px,2.6vw,40px);}
+        .scope-stats {margin:8px 0;}
+        .class-picker {display:grid;grid-template-columns:repeat(3,1fr);gap:16px;width:100%;max-width:960px;margin:8px auto 18px;}
+        .class-card {margin:0;padding:14px 18px;display:flex;flex-direction:column;gap:4px;align-items:center;border:2px solid #3c5575;border-radius:18px;background:#0b172b;box-shadow:none;color:#c2d4e9;}
+        .class-card strong {font-size:26px;}
+        .class-card span {font-size:34px;font-weight:800;}
+        .class-card small {font-size:18px;}
+        .class-card.selected {border-color:#6be8ff;background:linear-gradient(135deg,#123d54,#102439);color:#fff;box-shadow:0 0 22px #00d8ff33;}
+        .class-card.selected strong::before {content:'✓ ';color:#7dffc0;}
+        .lesson-filter {display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;margin:10px 0 0;}
+        .lesson-filter label {font-size:18px;}
+        .lesson-filter select {font-size:22px;padding:8px 14px;margin:0;width:auto;max-width:100%;}
+        @media(max-width:650px){.class-picker{gap:8px}.class-card{padding:10px}.class-card span{font-size:28px}.class-card small{font-size:15px}#preview-screen{padding:12px}.study-actions .secondary{font-size:16px}.lesson-filter select{font-size:18px}}
+        @media(max-width:650px){.class-picker{grid-template-columns:1fr}.class-card{flex-direction:row;flex-wrap:wrap;justify-content:center;gap:12px}.class-card span{font-size:28px}.class-card strong{font-size:24px}}
+
+        /* V19: bounded effects, visible deadlines, scrollable large-print choices. */
+        .env-bg .nebula-inner{filter:blur(28px)!important;width:140%!important;height:140%!important;top:-20%!important;left:-20%!important;animation-play-state:paused!important;}
+        body.game-running:not(.paused) .env-bg.active .nebula-inner{animation-play-state:running!important;}
+        body:not(.game-running) .stars,body:not(.game-running) .stars-fast{animation-play-state:paused;}
+
+        .challenge-rules{font-size:15px;color:#b7cfe8;line-height:1.5;margin:4px 0;flex-shrink:0;text-align:center;}
+        .challenge-rules span{font-size:20px;}
+        .orbit-column .question-instruction{top:var(--quiz-top,180px);}
+        #boss-entity{left:auto!important;right:10px;transform:none;}
+        .clock-row{display:flex;justify-content:space-between;align-items:center;gap:14px;width:100%;font-size:19px;font-variant-numeric:tabular-nums;margin:2px 0 5px;}
+
+        .fuse-container{height:8px!important;margin:0!important;}
+        #fuse-bar{width:100%!important;transform-origin:left;transition:none!important;}
+        .round-meter{width:100%;height:6px;margin-top:5px;background:#18283e;overflow:hidden;border-radius:99px;}
+        #round-bar{height:100%;background:#66e6ff;transform-origin:left;transition:none;}
+        .round-meter.urgent #round-bar{background:#ff658b;}
+        .question-grid-mode #game-area{padding-top:var(--quiz-top,180px)!important;overflow:auto;}
+        .grid-column .answer-options[data-count="4"]{grid-template-columns:repeat(2,minmax(0,1fr));}
+        .grid-column .meteorite{min-height:140px;}
+        .dual-layout .grid-column .answer-options{grid-template-columns:1fr;}
+        .dual-layout .grid-column .meteorite{min-height:100px;}
+        .radar-eliminated{opacity:.24!important;cursor:default;filter:grayscale(1);border-style:dashed;}
+        .meteorite:disabled:hover{transform:none;}
+        #relic-screen{max-height:96dvh;overflow:auto;justify-content:flex-start;padding:24px;}
+        #relic-screen h1{font-size:clamp(28px,3vw,40px);margin:6px 0;}
+        #relic-screen h2{font-size:22px;margin:10px 0;}
+        #equipped-relics{font-size:17px;color:#b8cfe5;max-width:100%;line-height:1.6;}
+        .relic-container{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));width:100%;gap:16px;align-items:stretch;}
+        .relic-card{width:100%;height:auto;min-height:0;padding:18px;margin:0;display:flex;flex-direction:column;gap:14px;white-space:normal;text-transform:none;letter-spacing:normal;}
+        .relic-card:hover{transform:translateY(-4px);}
+        .relic-icon{font-size:38px;line-height:1;}
+        .relic-title{font-size:22px;line-height:1.4;}
+        .relic-ar-title{display:block;font-size:32px;color:#fff;font-weight:800;}
+        .relic-buff,.relic-debuff{display:block;width:100%;font-size:17px;line-height:1.5;text-align:left;}
+        .relic-ar-desc{display:block;font-size:27px;font-weight:800;line-height:1.5;text-align:right;}
+        .skip-relic{font-size:20px;margin:16px 0 0;box-shadow:none;border-color:#54728e;}
+        #result-screen{max-height:96dvh;overflow:auto;}
+        #result-detail{font-size:18px;color:#aacbe1;}
+        @media(max-width:850px){.relic-container{grid-template-columns:1fr}.relic-card{gap:8px}.relic-card:hover{transform:none}.clock-row{font-size:16px;gap:8px}}
+        @media(max-width:700px){.grid-column .answer-options[data-count="4"]{grid-template-columns:1fr}.clock-row{flex-wrap:wrap;font-size:14px;gap:4px}.challenge-rules{font-size:12px}.challenge-rules span{font-size:16px}.score-board{margin:3px 0}}
+
+        /* V21: equipment decisions and teaching feedback remain untimed. */
+        [hidden]{display:none!important;}
+        #hud-loadout{font-size:17px;color:#adcee8;}
+        .equipment-slots,.replacement-options{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;width:100%;margin:8px 0 18px;}
+        .equipment-slot{border:1px solid #3e607e;border-radius:14px;background:#071a2a;padding:12px;display:flex;flex-direction:column;gap:6px;font-size:18px;}
+        .equipment-slot span{font-size:25px;color:#9cecff;}
+        .service-label{font-size:17px;color:#ffe098;line-height:1.5;}
+        #replacement-panel{width:100%;padding:14px;border:1px solid #66e6ff;border-radius:18px;}
+        #replacement-panel h3{font-size:28px;margin:8px 0;color:#ffde84;}
+        #replacement-detail{font-size:19px;line-height:1.6;}
+        #replacement-detail span{font-size:28px;display:block;}
+        .replace-option{font-size:18px;white-space:normal;display:flex;flex-direction:column;gap:10px;margin:0;padding:18px;letter-spacing:normal;}
+        .replace-option [lang="ar"]{font-size:26px;}
+        .replace-option small,.removed-effect{font-size:16px;line-height:1.5;color:#b3d1e5;}
+        .replace-option:disabled{opacity:.35;cursor:default;}
+        .order-board{pointer-events:auto;flex:1;min-height:250px;overflow:auto;padding:8px;display:flex;flex-direction:column;gap:12px;}
+        .order-output{min-height:100px;border:2px dashed #70c9e7;border-radius:16px;padding:10px;display:flex;flex-wrap:wrap;align-items:center;gap:8px;background:#061c2b;}
+        .order-placeholder{font-size:22px;color:#a6bccd;}
+        .order-pool{display:flex;flex-wrap:wrap;gap:10px;align-content:start;}
+        .order-token,.order-picked{margin:0;padding:10px 14px;display:inline-flex;flex-direction:column;align-items:center;gap:4px;border:1px solid #5283a8;border-radius:14px;white-space:normal;letter-spacing:normal;background:#132b43;}
+        .order-token:disabled{opacity:.28;cursor:default;}
+        .token-py{font-size:40px;line-height:1.25;color:#ffe078;font-weight:800;}
+        .token-ch{font-size:30px;color:#f1f8ff;font-weight:800;}
+        .order-actions{display:flex;gap:12px;justify-content:center;}
+        .order-actions button{font-size:20px;margin:0;padding:10px 16px;}
+        .order-actions button:disabled{opacity:.35;cursor:default;}
+        .order-hint{font-size:17px;color:#aec9dd;margin:0;}
+        .correction-panel{position:fixed;inset:3dvh 3vw;z-index:1300;display:flex;flex-direction:column;align-items:center;gap:12px;padding:20px;background:#06111ff5;border:2px solid #70d8ee;border-radius:22px;overflow:auto;box-shadow:0 0 0 10vw #020611b0;}
+        .correction-panel h2{font-size:30px;color:#b1efff;margin:0;text-align:center;}
+        #correction-reason{font-size:22px;color:#ffce85;margin:0;}
+        .correction-content{width:100%;max-width:1400px;display:flex;flex-direction:column;gap:16px;}
+        .correction-card{padding:20px;background:#0b2538;border-radius:16px;text-align:center;display:flex;flex-direction:column;gap:10px;}
+        .correct-order{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin:8px 0;}
+        .correct-order span{font-size:32px;color:#f0f8ff;border:1px solid #438298;border-radius:10px;padding:6px 12px;}
+        #correction-continue{margin:0;font-size:24px;flex-shrink:0;}
+        #correction-continue:disabled{opacity:.5;cursor:default;}
+        #result-screen{width:95vw;max-width:1350px;justify-content:flex-start;padding:20px;}
+        #result-screen h1{font-size:34px;margin:4px 0;}
+        #result-screen h2{font-size:26px;margin:4px 0;}
+        .learning-results{width:100%;margin:12px 0;text-align:center;}
+        .learning-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;}
+        .learning-stats>div{background:#0c2538;padding:14px;border:1px solid #376982;border-radius:15px;display:flex;flex-direction:column;gap:6px;}
+        .learning-stats strong{font-size:38px;color:#ffe18a;}
+        .learning-stats span{font-size:20px;color:#d7f4ff;}
+        .learning-definition{font-size:16px;color:#b5d2e4;line-height:1.6;}
+        .learning-definition [lang="ar"]{font-size:22px;}
+        .learning-items{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;width:100%;}
+        .learning-item{border:1px solid #345d7d;background:#0a1d2e;border-radius:15px;padding:16px;display:flex;flex-direction:column;gap:8px;}
+        .learning-ar{font-size:40px;font-weight:800;color:#8fefff;line-height:1.5;}
+        .learning-py{font-size:40px;font-weight:800;color:#ffe08b;line-height:1.3;}
+        .learning-ch{font-size:30px;color:#eaf5ff;}
+        .learning-item small{font-size:16px;color:#b7cddd;}
+        .learning-results details{margin:18px 0;text-align:left;}
+        .learning-results summary{font-size:22px;cursor:pointer;color:#9de6f5;padding:8px;}
+        .learning-empty{grid-column:1/-1;font-size:20px;color:#a5c5d9;}
+        @media(max-width:850px){.equipment-slots,.replacement-options{grid-template-columns:1fr}.learning-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.learning-items{grid-template-columns:1fr}.correction-panel{padding:14px;inset:2dvh 2vw}.correction-panel h2{font-size:24px}.order-actions{flex-wrap:wrap}}
+        /* V23: a teacher can present the new lesson without starting a game. */
+        .weekly-entry{border-color:#77ddbd!important;background:linear-gradient(135deg,#103b3a,#12243d)!important;box-shadow:0 0 16px #68e4bc22!important;}
+        #login-screen .weekly-entry{margin-top:12px;font-size:22px;}
+        #weekly-screen{width:96vw;max-width:1540px;height:96dvh;padding:18px 24px;justify-content:flex-start;overflow:hidden;gap:12px;}
+        .weekly-header{width:100%;display:flex;align-items:center;justify-content:space-between;gap:20px;flex-shrink:0;}
+        .weekly-header h2{font-size:clamp(30px,2.8vw,44px);line-height:1.4;color:#8bedd6;margin:0;}
+        .weekly-header p{font-size:20px;color:#bdd9df;margin-top:4px;}
+        .weekly-close{font-size:20px;padding:10px 18px;margin:0;box-shadow:none;border-color:#497a8f;white-space:nowrap;}
+        .weekly-tabs{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;flex-shrink:0;width:100%;}
+        .weekly-tabs button{font-size:21px;margin:0;padding:9px 18px;box-shadow:none;border-color:#34536b;background:#091b2b;}
+        .weekly-tabs button.selected{border-color:#81e1c1;background:#12423d;color:#e5fff6;}
+        .weekly-tabs span{font-variant-numeric:tabular-nums;color:#a4d0d9;margin-left:6px;}
+        .weekly-viewport{width:100%;min-height:0;flex:1;overflow:auto;padding:5px;scrollbar-color:#5edbc7 #081c29;}
+        .weekly-card{min-height:100%;padding:clamp(20px,2.4vw,38px);border:2px solid #397b87;border-radius:26px;background:radial-gradient(ellipse at top right,#0d3e49,#071321 76%);display:flex;flex-direction:column;justify-content:center;align-items:center;gap:16px;text-align:center;box-shadow:inset 0 0 40px #7ce6bd0a;}
+        .weekly-kind{font-size:22px;line-height:1.5;color:#b1d7df;}
+        .weekly-ar{font-size:clamp(56px,4.7vw,80px);line-height:1.4;color:#84eeed;font-weight:900;max-width:100%;overflow-wrap:anywhere;}
+        .weekly-py{font-size:clamp(54px,4.2vw,72px);line-height:1.3;color:#ffe18a;font-weight:800;max-width:100%;overflow-wrap:normal;}
+        .weekly-ch{font-size:clamp(38px,3.1vw,52px);line-height:1.35;color:#f2f8ff;max-width:100%;overflow-wrap:anywhere;}
+        .weekly-explanation{width:100%;max-width:1250px;border-top:1px solid #37717b;padding-top:16px;margin-top:4px;}
+        .weekly-caption{font-size:18px;color:#b7d2dc;line-height:1.5;margin-bottom:8px;}
+        .weekly-note{font-size:clamp(36px,2.7vw,46px);line-height:1.6;color:#e0f3ed;text-align:center;}
+        .weekly-focus{display:flex;justify-content:center;align-items:stretch;flex-wrap:wrap;gap:12px;margin-top:16px;}
+        .weekly-focus-part{flex:1 1 280px;max-width:100%;padding:12px 18px;display:flex;flex-direction:column;justify-content:center;gap:6px;border:1px solid #4f7185;border-radius:16px;background:#092332;}
+        .weekly-focus-part .focus-ar{font-size:clamp(34px,2.7vw,44px);line-height:1.4;}
+        .weekly-focus-part .focus-py{font-size:clamp(34px,2.7vw,44px);line-height:1.3;font-weight:700;}
+        .weekly-focus-part .focus-ch{font-size:32px;line-height:1.3;}
+        .weekly-focus-part:nth-child(3n+1){color:#93e7fc;}.weekly-focus-part:nth-child(3n+2){color:#ffd58b;}.weekly-focus-part:nth-child(3n){color:#b6edaf;}
+        .weekly-footer{width:100%;flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:8px;}
+        .weekly-pagination{display:flex;justify-content:center;align-items:center;gap:24px;width:100%;}
+        .weekly-pagination button{font-size:22px;margin:0;padding:10px 22px;box-shadow:none;}
+        .weekly-pagination button:disabled{opacity:.3;cursor:default;}
+        #weekly-progress{font-size:25px;min-width:100px;font-variant-numeric:tabular-nums;}
+        .weekly-key-help{font-size:16px;color:#a9c6d1;line-height:1.4;text-align:center;}
+        body.weekly-lecturing .teacher-tools{display:none;}
+        @media(max-width:800px),(max-height:699px){#weekly-screen{padding:12px;gap:8px}.weekly-header h2{font-size:28px}.weekly-header p{font-size:16px}.weekly-tabs button{font-size:17px;padding:7px 10px}.weekly-card{gap:12px;padding:20px}.weekly-note{font-size:32px}.weekly-close{font-size:16px}.weekly-ar{font-size:48px}.weekly-py{font-size:44px}.weekly-ch{font-size:34px}.weekly-pagination{gap:12px}.weekly-pagination button{font-size:18px;padding:9px 12px}#weekly-progress{font-size:20px;min-width:70px}.weekly-key-help{font-size:13px}}
+        @media(max-width:500px){.weekly-header{gap:10px}.weekly-header h2{font-size:24px}.weekly-header p{font-size:14px}.weekly-tabs{gap:6px}.weekly-tabs button{font-size:15px;padding:6px 8px}.weekly-card{padding:18px 14px}.weekly-ar{font-size:42px}.weekly-py{font-size:40px}.weekly-note{font-size:28px}.weekly-pagination{gap:7px}.weekly-pagination button{font-size:15px;padding:8px}.weekly-focus-part{padding:10px}.weekly-focus-part .focus-ar,.weekly-focus-part .focus-py{font-size:32px}}
+    </style>
+</head>
+<body>
+
+    <div class="teacher-tools"><button id="pause-btn" onclick="togglePause()">暂停 / إيقاف</button><button id="mute-btn" onclick="toggleMute()">开启提示音 / تشغيل التنبيهات الصوتية</button></div><div id="pause-overlay" hidden><h2>已暂停 / متوقف مؤقتًا</h2><button onclick="togglePause()">继续 / متابعة</button></div><div id="storage-status" role="status"></div><div id="flash-layer"></div>
+    <canvas id="vfx-canvas"></canvas>
+    
+    <!-- 固定环境图层 -->
+    <div id="bg-tier-1" class="env-bg active"><div class="nebula-inner"></div></div>
+    <div id="bg-tier-2" class="env-bg"><div class="nebula-inner"></div></div>
+    <div id="bg-tier-3" class="env-bg"><div class="nebula-inner"></div></div>
+    <div id="bg-tier-boss" class="env-bg"><div class="nebula-inner"></div></div>
+
+    <div class="stars-container">
+        <div class="stars" id="stars1"></div>
+        <div class="stars-fast" id="stars2"></div>
+    </div>
+
+    <!-- 1. 登录 -->
+    <div class="screen active" id="login-screen">
+        <h1>🌌 星际轨道 <span style="color:var(--neon-pink); font-size: 2.2rem;">九年级课堂版</span> 🚀</h1>
+        
+        <div class="changelog grade9-intro">
+            <div class="release-tag">V23 · 本周新词与句型逐页讲解 · 2026-10-18</div>
+            <h2 dir="rtl" lang="ar">مراجعة اللغة الصينية للصف التاسع</h2>
+            <p class="scope-ar" dir="rtl" lang="ar">الدروس من الأول إلى الرابع</p>
+            <p>九年级课堂练习 · 第一课至第四课</p>
+            <p id="class-status" class="scope-ar" dir="auto"></p>
+            <div class="scope-stats"><span>31 个词</span><span>27 组短语与句子</span><span>三个班 · 93 人</span><span>20 种改装模块</span></div>
+            <p class="instruction-ar" dir="rtl" lang="ar">اختر شعبتك، ثم راجع الكلمات والعبارات وابدأ التحدّي.</p>
+        </div>
+        <div class="class-picker" role="group" aria-label="班级切换 / اختر الشعبة"><button class="class-card" data-class="1" onclick="selectClass('1')" aria-pressed="true"><strong>一班</strong><span lang="ar" dir="rtl">الشعبة الأولى</span><small>31 人 / ٣١ طالبًا</small></button><button class="class-card" data-class="2" onclick="selectClass('2')" aria-pressed="false"><strong>二班</strong><span lang="ar" dir="rtl">الشعبة الثانية</span><small>30 人 / ٣٠ طالبًا</small></button><button class="class-card" data-class="3" onclick="selectClass('3')" aria-pressed="false"><strong>三班</strong><span lang="ar" dir="rtl">الشعبة الثالثة</span><small>32 人 / ٣٢ طالبًا</small></button></div>
+        <select id="student-select" dir="rtl" aria-label="选择当前班级学生 / اختر طالبًا من الشعبة المحددة"></select>
+        <br><button onclick="goToPreview()">系统登录 تسجيل الدخول</button>
+        <button type="button" class="weekly-entry" onclick="openWeeklyGuide()">本周新课讲解 / شرح درس هذا الأسبوع</button>
+    </div>
+
+    <!-- 2. 大字分页复习：预习内容与实际题库来自同一数据源 -->
+    <div class="screen" id="preview-screen">
+        <div class="study-heading"><div><h2 dir="rtl" lang="ar">راجع قبل التحدّي</h2><p data-class-label></p></div><span id="study-student" dir="rtl"></span></div>
+        <div class="lesson-filter"><label for="lesson-select">选择课次 / اختر الدرس</label><select id="lesson-select" onchange="changeLesson(this.value)"><option value="all">全部四课 / جميع الدروس</option><option value="1">第一课 / الدرس الأول</option><option value="2">第二课 / الدرس الثاني</option><option value="3">第三课 / الدرس الثالث</option><option value="4">第四课 · 地理 / الدرس الرابع · الجغرافيا</option></select></div>
+        <nav class="study-tabs" aria-label="复习分类">
+            <button data-study="words" onclick="setStudyTab('words')">词汇 <span lang="ar" dir="rtl">الكلمات</span></button>
+            <button data-study="sentences" onclick="setStudyTab('sentences')">短语与句子 <span lang="ar" dir="rtl">العبارات والجمل</span></button>
+        </nav>
+        <div class="study-viewport" id="preview-grid" aria-live="polite"></div>
+        <div class="study-pagination"><button id="study-prev" onclick="moveStudy(-1)">← 上一页 / السابق</button><span id="study-progress"></span><button id="study-next" onclick="moveStudy(1)">下一页 / التالي →</button></div>
+        <p class="challenge-rules" dir="auto">每轮限时；普通题计分；Boss 按所选课次轮换词汇、短句和语序。三个装备槽，过关可装配或替换模块。<br><span lang="ar" dir="rtl">لكل جولة مهلة. الأسئلة العادية تمنح نقاطًا. يتناوب الحارس بين المفردات والعبارات والترتيب من الدروس المختارة. لديك ثلاث خانات للتجهيز.</span></p>
+        <div class="study-actions"><label for="game-scope">普通题内容 / نوع الأسئلة العادية</label><select id="game-scope"><option value="mixed">综合复习 / مراجعة شاملة</option><option value="words">词汇配对 / مطابقة الكلمات</option><option value="sentences">短语与句子 / العبارات والجمل</option></select><button onclick="startGame()">🚀 开始挑战 / ابدأ التحدّي</button><button type="button" class="weekly-entry" onclick="openWeeklyGuide()">本周新课讲解 / شرح درس هذا الأسبوع</button><button class="secondary" onclick="backToLogin()">切换学生或班级 / تغيير الطالب أو الشعبة</button></div>
+    </div>
+
+    <!-- 本周新增内容：独立讲解模式，一页只展示一个词或句型。 -->
+    <section class="screen" id="weekly-screen" aria-labelledby="weekly-title" inert>
+        <header class="weekly-header">
+            <div><h2 id="weekly-title" lang="ar" dir="rtl">شرح درس هذا الأسبوع</h2><p>本周新课讲解 · 第四课：地理</p></div>
+            <button type="button" class="weekly-close" id="weekly-close" onclick="closeWeeklyGuide()">返回 / رجوع</button>
+        </header>
+        <nav class="weekly-tabs" aria-label="讲解范围 / محتوى الشرح">
+            <button type="button" data-weekly-filter="all" onclick="setWeeklyFilter('all')" aria-pressed="true">全部 / الكل <span id="weekly-count-all"></span></button>
+            <button type="button" data-weekly-filter="words" onclick="setWeeklyFilter('words')" aria-pressed="false">词汇 / الكلمات <span id="weekly-count-words"></span></button>
+            <button type="button" data-weekly-filter="sentences" onclick="setWeeklyFilter('sentences')" aria-pressed="false">句型 / الجمل <span id="weekly-count-sentences"></span></button>
+        </nav>
+        <div class="weekly-viewport" id="weekly-slide" role="region" aria-label="当前讲解页 / صفحة الشرح الحالية" aria-live="polite" aria-atomic="true"></div>
+        <footer class="weekly-footer">
+            <div class="weekly-pagination"><button type="button" id="weekly-prev" onclick="moveWeekly(-1)">← 上一页 / السابق</button><span id="weekly-progress" dir="ltr" role="status"></span><button type="button" id="weekly-next" onclick="moveWeekly(1)">下一页 / التالي →</button></div>
+            <p class="weekly-key-help">← → 翻页 · Esc 返回 / استخدم السهمين للتنقّل و Esc للرجوع</p>
+        </footer>
+    </section>
+
+    <!-- 3. 游戏 -->
+    <div class="screen" id="game-screen">
+        <div class="hud-top">
+            <div class="hud-wave-info" id="hud-wave">波次: 1 | 目标跃迁能量: 30</div>
+            <div class="score-board">
+                <div id="hud-hp" class="hp-ui">生命: ❤️❤️❤️</div>
+                <div id="hud-score">总能量: 0</div>
+                <div id="hud-combo">Combo: 0</div><div id="hud-loadout" aria-label="当前装备 / التجهيز الحالي">0/3</div>
+                <div id="hud-shield" class="shield-ui" style="display:none;"><span class="shield-icon">🛡️</span> x<span id="shield-count">0</span></div>
+            </div>
+            <div class="clock-row"><span id="hud-clock"></span><span id="hud-round"></span></div><div class="fuse-container" aria-label="波次剩余时间"><div class="fuse-bar" id="fuse-bar"></div></div><div id="round-meter" class="round-meter" aria-label="本轮剩余时间"><div id="round-bar"></div></div>
+        </div>
+        
+        <!-- 保持固定结构防止空指针 -->
+        <div class="game-area" id="game-area">
+            <div id="boss-entity">
+                <div class="boss-icon">🤖</div>
+                <div class="boss-hp" id="boss-hp-ui">HP: 3/3</div>
+            </div>
+            <div class="orbit-path"></div>
+            <div class="spaceship" id="spaceship"></div>
+        </div>
+    </div>
+
+    <!-- 4. 遗物 -->
+    <div class="screen" id="relic-screen">
+        <h1>✨ 跃迁成功 قفزة ناجحة ✨</h1>
+        <h2>请选择改装配件 (注意副作用) / اختر ترقية (احذر الآثار الجانبية)</h2>
+        <p id="equipped-relics"></p><div id="equipment-slots" class="equipment-slots"></div><div class="relic-container" id="relic-container"></div><section id="replacement-panel" hidden><h3 id="replacement-title"></h3><p>选择要换下的模块 / اختر الوحدة التي تريد استبدالها</p><div id="replacement-detail"></div><div id="replacement-options" class="replacement-options"></div><button onclick="cancelReplacement()">返回选择 / العودة للاختيار</button></section><button class="skip-relic" onclick="applyRelic('skip')">保留现有配置 / متابعة بدون قطعة</button>
+    </div>
+
+    <!-- 5. 结算 -->
+    <div class="screen" id="result-screen">
+        <h1>航行终止 المهمة انتهت</h1>
+        <p data-class-label></p><p>课堂成绩榜 / سجل النقاط</p><p id="result-detail"></p>
+        <h2>最终总能量: <span id="final-score" style="color: var(--neon-gold); font-size: 4.5rem; text-shadow: var(--text-glow);"></span></h2>
+        <h3 id="final-wave" style="color: var(--neon-pink); margin-bottom: 20px; font-size: 2.2rem;">抵达波次: 1</h3>
+        <section class="learning-results" aria-label="本局学习成果 / نتيجة التعلّم">
+            <div class="learning-stats"><div><strong id="learning-accuracy">—</strong><span>正确率 / الدقة</span></div><div><strong id="learning-mastered">0</strong><span>掌握词数 / كلمات ثبّتها</span></div><div><strong id="learning-phrases">0</strong><span>巩固短句 / عبارات ثبّتها</span></div><div><strong id="learning-recovered">0</strong><span>纠错成功 / أخطاء صُحّحت</span></div></div>
+            <p class="learning-definition" dir="auto">本局同一表达的最近两次作答均正确，记为已巩固。Boss 两侧分别统计；超时计入失误，护盾不免除学习记录中的错误。词数分母为本局遇到的词数。<br><span lang="ar" dir="rtl">تُثبّت الكلمة إذا كانت آخر إجابتين عنها صحيحتين. يُحسب كل جانب من الحارس سؤالًا مستقلًا، وانتهاء المهلة خطأ. الدرع لا يمحو الخطأ من سجل التعلّم. المقام هو عدد الكلمات التي ظهرت.</span></p>
+            <h3>需要复习 / للمراجعة <span id="learning-review-count">0</span></h3><div id="learning-review-list" class="learning-items"></div>
+            <details><summary>本局已巩固的表达 / عبارات ثبّتها في هذه الجولة</summary><div id="learning-mastered-list" class="learning-items"></div></details>
+        </section>
+        <div class="result-btns">
+            <button onclick="downloadLearningCSV()">下载学习明细 / تنزيل تفاصيل التعلّم</button><button onclick="downloadCSV()">下载新版成绩 تحميل السجل (CSV)</button><button id="legacy-export" hidden onclick="downloadCSV(true)">导出旧版成绩 / تنزيل السجل القديم</button>
+            <button onclick="backToLogin()">切换学生或班级 / تغيير الطالب أو الشعبة</button>
+        </div>
+        <div style="max-height: 250px; overflow-y: auto; margin-top: 25px; width: 100%;">
+            <table><thead><tr><th>学号 / الرقم</th><th>指挥官 / الزائر</th><th>最高分 / أعلى نقاط</th><th>最近正确率 / الدقة الأخيرة</th></tr></thead><tbody id="leaderboard-body"></tbody></table>
+        </div>
+    </div>
+
+
+    <section id="correction-panel" class="correction-panel" role="dialog" aria-modal="true" aria-labelledby="correction-title" tabindex="-1" hidden>
+        <h2 id="correction-title">看一看正确表达 / راجع الإجابة الصحيحة</h2><p id="correction-reason"></p>
+        <div id="correction-content" class="correction-content"></div><button id="correction-continue" onclick="continueCorrection()" disabled>先看正确表达 / راجع الإجابة الصحيحة</button>
+    </section>
+
+<script>
+    'use strict';
+    const CONFIG = Object.freeze({ storageKey:'demo-star-orbit-grade9-u1-u2-class1-roster31-20261004-v15', rulesVersion:19 });
+    let phase='login', paused=false, muted=true;
+    const jobs=new Map(); let nextJob=0, frameHandle=null, previousFrame=null, hudElapsed=0;
+    const canvas=document.getElementById('vfx-canvas'), ctx=canvas.getContext('2d');
+    const particles=[], lasers=[];
+    const motionQuery=window.matchMedia?.('(prefers-reduced-motion: reduce)');
+    let reducedMotion=Boolean(motionQuery?.matches), canvasDirty=false;
+    motionQuery?.addEventListener?.('change',event=>{reducedMotion=event.matches;});
+    function matchReducedMotion(){return reducedMotion;}
+    function resizeCanvas(){canvas.width=innerWidth;canvas.height=innerHeight;canvasDirty=true;requestFrame();}
+    window.addEventListener('resize',resizeCanvas);
+    function requestFrame(){if(frameHandle===null)frameHandle=requestAnimationFrame(runFrame);}
+    function later(fn,ms){const id=++nextJob;jobs.set(id,{fn,remaining:ms});requestFrame();return id;}
+    function runFrame(now){
+        frameHandle=null;
+        const dt=previousFrame===null?0:Math.max(0,(now-previousFrame)/1000);previousFrame=now;
+        if(!paused && !document.hidden){
+            // Snapshot first: callbacks scheduled by this frame begin on the next frame.
+            const pending=[...jobs];
+            if(phase==='playing' && roundActive && !isProcessing)advanceGameplay(dt);
+            for(const [id,job] of pending){
+                if(!jobs.has(id))continue;job.remaining-=dt*1000;
+                if(job.remaining<=0){jobs.delete(id);job.fn();}
+            }
+            orbitLoop(Math.min(dt,0.05));renderParticles(Math.min(dt,0.05));
+            hudElapsed+=dt;if(phase==='playing' && hudElapsed>=0.1){hudElapsed=0;updateHUD();}
+        }
+        if(!paused&&!document.hidden&&((phase==='playing'&&roundActive)||jobs.size||particles.length||lasers.length||canvasDirty))requestFrame();
+        else previousFrame=null;
+    }
+    function shuffle(items){const a=[...items];for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+    function toggleMute(){
+        muted=!muted;
+        document.getElementById('mute-btn').textContent=muted?'开启提示音 / تشغيل التنبيهات الصوتية':'关闭提示音 / كتم التنبيهات الصوتية';
+        if(!muted){initAudio();if(audioCtx&&!paused)audioCtx.resume();}
+        else if(audioCtx)audioCtx.suspend();
+    }
+    function togglePause(){
+        if(phase!=='playing')return;paused=!paused;previousFrame=null;
+        document.body.classList.toggle('paused',paused);document.getElementById('pause-overlay').hidden=!paused;
+        if(audioCtx){if(paused||muted)audioCtx.suspend();else audioCtx.resume();}requestFrame();
+    }
+    document.addEventListener('visibilitychange',()=>{if(document.hidden&&!paused&&phase==='playing')togglePause();previousFrame=null;if(!document.hidden)requestFrame();});
+    document.addEventListener('keydown',e=>{if(e.code==='Space'&&!/INPUT|SELECT|BUTTON|TEXTAREA/.test(e.target.tagName)){e.preventDefault();togglePause();}});
+    function scoreStorageKey(info){return info.storageKey+'-challenge-v19';}
+    function saveScores(){try{localStorage.setItem(scoreStorageKey(CLASSES[currentClass]),JSON.stringify(leaderboard));}catch(e){document.getElementById('storage-status').textContent='成绩未能保存，请下载 CSV / يرجى تنزيل السجل';}}
+    function spawnCanvasParticles(x,y,color,isVortex=false){
+        if(reducedMotion)return;
+        for(let i=0;i<(isVortex?18:12)&&particles.length<120;i++)particles.push({x,y,vx:(Math.random()-.5)*220,vy:(Math.random()-.5)*220,life:1,color,size:2+Math.random()*3});
+        requestFrame();
+    }
+    function renderParticles(dt){
+        if(!ctx){canvasDirty=false;particles.length=0;lasers.length=0;return;}
+        if(!canvasDirty&&!particles.length&&!lasers.length)return;
+        ctx.clearRect(0,0,canvas.width,canvas.height);canvasDirty=false;ctx.globalCompositeOperation='screen';
+        for(let i=particles.length-1;i>=0;i--){const p=particles[i];p.life-=dt*2.1;if(p.life<=0){particles.splice(i,1);continue;}p.x+=p.vx*dt;p.y+=p.vy*dt;ctx.globalAlpha=p.life;ctx.fillStyle=p.color;ctx.beginPath();ctx.arc(p.x,p.y,p.size*p.life,0,Math.PI*2);ctx.fill();}
+        ctx.globalAlpha=1;
+        for(let i=lasers.length-1;i>=0;i--){const l=lasers[i];l.life-=dt;if(l.life<=0){lasers.splice(i,1);continue;}ctx.strokeStyle='#83edff';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(l.x1,l.y1);ctx.lineTo(l.x2,l.y2);ctx.stroke();}
+        // One final clear after the final particle/beam disappears.
+        canvasDirty=particles.length>0||lasers.length>0;
+    }
+    function drawDOMToCanvasLaser(x1,y1,x2,y2){if(reducedMotion)return;if(lasers.length<4)lasers.push({x1,y1,x2,y2,life:.12});requestFrame();}
+    resizeCanvas();
+
+    /* 九年级一班：按2026-10-04提供的照片原顺序录入，共31人。
+       第13行末尾“ال”按原图保留；第14、17行分别保留独立学号。 */
+    const students = ["DEMO G9-C1-01","DEMO G9-C1-02","DEMO G9-C1-03","DEMO G9-C1-04","DEMO G9-C1-05","DEMO G9-C1-06","DEMO G9-C1-07","DEMO G9-C1-08","DEMO G9-C1-09","DEMO G9-C1-10","DEMO G9-C1-11","DEMO G9-C1-12","DEMO G9-C1-13","DEMO G9-C1-14","DEMO G9-C1-15","DEMO G9-C1-16","DEMO G9-C1-17","DEMO G9-C1-18","DEMO G9-C1-19","DEMO G9-C1-20","DEMO G9-C1-21","DEMO G9-C1-22","DEMO G9-C1-23","DEMO G9-C1-24","DEMO G9-C1-25","DEMO G9-C1-26","DEMO G9-C1-27","DEMO G9-C1-28","DEMO G9-C1-29","DEMO G9-C1-30","DEMO G9-C1-31"];
+    const class3Students = ["DEMO G9-C3-01","DEMO G9-C3-02","DEMO G9-C3-03","DEMO G9-C3-04","DEMO G9-C3-05","DEMO G9-C3-06","DEMO G9-C3-07","DEMO G9-C3-08","DEMO G9-C3-09","DEMO G9-C3-10","DEMO G9-C3-11","DEMO G9-C3-12","DEMO G9-C3-13","DEMO G9-C3-14","DEMO G9-C3-15","DEMO G9-C3-16","DEMO G9-C3-17","DEMO G9-C3-18","DEMO G9-C3-19","DEMO G9-C3-20","DEMO G9-C3-21","DEMO G9-C3-22","DEMO G9-C3-23","DEMO G9-C3-24","DEMO G9-C3-25","DEMO G9-C3-26","DEMO G9-C3-27","DEMO G9-C3-28","DEMO G9-C3-29","DEMO G9-C3-30","DEMO G9-C3-31","DEMO G9-C3-32"];
+    /* Synthetic demo roster; no real student identities. */
+    const class2Students = ["DEMO G9-C2-01","DEMO G9-C2-02","DEMO G9-C2-03","DEMO G9-C2-04","DEMO G9-C2-05","DEMO G9-C2-06","DEMO G9-C2-07","DEMO G9-C2-08","DEMO G9-C2-09","DEMO G9-C2-10","DEMO G9-C2-11","DEMO G9-C2-12","DEMO G9-C2-13","DEMO G9-C2-14","DEMO G9-C2-15","DEMO G9-C2-16","DEMO G9-C2-17","DEMO G9-C2-18","DEMO G9-C2-19","DEMO G9-C2-20","DEMO G9-C2-21","DEMO G9-C2-22","DEMO G9-C2-23","DEMO G9-C2-24","DEMO G9-C2-25","DEMO G9-C2-26","DEMO G9-C2-27","DEMO G9-C2-28","DEMO G9-C2-29","DEMO G9-C2-30"];
+    const CLASSES = {
+        '1':{label:'九年级一班',ar:'الشعبة الأولى',names:students,storageKey:CONFIG.storageKey},
+        '2':{label:'九年级二班',ar:'الشعبة الثانية',names:class2Students,storageKey:'demo-star-orbit-grade9-class2-roster30-20261013'},
+        '3':{label:'九年级三班',ar:'الشعبة الثالثة',names:class3Students,storageKey:'demo-star-orbit-grade9-class3-roster32-20261007',legacyStorageKey:'demo-star-orbit-grade9-class2-roster32-20261007'}
+    };
+    let currentClass='1', studentRoster=[], studentById=new Map();
+    function scoreStudent(id) {
+        return studentById.get(id) || {number:'—',name:id.startsWith('guest:')?id.slice(6):id};
+    }
+    function selectClass(id){
+        if(!CLASSES[id] || !['login','result'].includes(phase))return;
+        currentClass=id;
+        const info=CLASSES[id];
+        studentRoster=info.names.map((name,index)=>({id:'g9-c'+id+'-'+String(index+1).padStart(2,'0'),number:String(index+1).padStart(2,'0'),name}));
+        studentById=new Map(studentRoster.map(student=>[student.id,student]));
+        leaderboard=Object.create(null);legacyLeaderboard=Object.create(null);lastSessionReport=null;currentStudent='';currentStudentId='';
+        document.getElementById('storage-status').textContent='';
+        try{
+            const validScores=raw=>{
+                const parsed=JSON.parse(raw||'{}'),scores=Object.create(null);
+                if(parsed&&typeof parsed==='object'&&!Array.isArray(parsed))for(const [key,score] of Object.entries(parsed))if(Number.isFinite(score)&&score>=0&&(studentById.has(key)||key.startsWith('guest:')))scores[key]=score;
+                return scores;
+            };
+            leaderboard=validScores(localStorage.getItem(scoreStorageKey(info)));
+            const oldRaw=localStorage.getItem(info.storageKey);
+            legacyLeaderboard=validScores(oldRaw);
+            if(oldRaw===null&&info.legacyStorageKey){
+                const old=JSON.parse(localStorage.getItem(info.legacyStorageKey)||'{}');
+                if(old&&typeof old==='object'&&!Array.isArray(old))for(const [key,score] of Object.entries(old)){
+                    const newKey=key.replace(/^g9-c2-/, 'g9-c3-');
+                    if(Number.isFinite(score)&&score>=0&&(studentById.has(newKey)||newKey.startsWith('guest:')))legacyLeaderboard[newKey]=score;
+                }
+            }
+            localStorage.setItem('demo-star-orbit-grade9-selected-class',id);
+        }catch(e){document.getElementById('storage-status').textContent='本地成绩不可用，请及时导出 CSV';}
+        document.querySelectorAll('[data-class]').forEach(button=>{
+            const selected=button.dataset.class===id;
+            button.classList.toggle('selected',selected);button.setAttribute('aria-pressed',String(selected));
+        });
+        document.querySelectorAll('[data-class-label]').forEach(el=>el.textContent=info.label+' / '+info.ar);
+        document.getElementById('class-status').textContent=info.label+' · '+info.names.length+' 人 / '+info.ar;
+        loadLearningArchive();phase='login';refreshStudentList();switchScreen('login-screen');
+    }
+    /* 保留前三课，新增第四课地理词汇与例句；按上传教材录入并去重。 */
+    const vocab = [
+    {
+        "ch": "好久不见",
+        "py": "hǎojiǔ bújiàn",
+        "ar": "لم نلتقِ منذ زمن",
+        "lesson": 1,
+        "kind": "word"
+    },
+    {
+        "ch": "姐姐",
+        "py": "jiějie",
+        "ar": "الأخت الكبرى",
+        "lesson": 1,
+        "kind": "word"
+    },
+    {
+        "ch": "认识",
+        "py": "rènshi",
+        "ar": "يتعرّف إلى",
+        "lesson": 1,
+        "kind": "word"
+    },
+    {
+        "ch": "毕业",
+        "py": "bìyè",
+        "ar": "يتخرّج",
+        "lesson": 1,
+        "kind": "word"
+    },
+    {
+        "ch": "大学",
+        "py": "dàxué",
+        "ar": "جامعة",
+        "lesson": 1,
+        "kind": "word"
+    },
+    {
+        "ch": "奶茶",
+        "py": "nǎichá",
+        "ar": "شاي بالحليب",
+        "lesson": 2,
+        "kind": "word"
+    },
+    {
+        "ch": "咖啡",
+        "py": "kāfēi",
+        "ar": "قهوة",
+        "lesson": 2,
+        "kind": "word"
+    },
+    {
+        "ch": "鸡蛋",
+        "py": "jīdàn",
+        "ar": "بيض",
+        "lesson": 2,
+        "kind": "word"
+    },
+    {
+        "ch": "超市",
+        "py": "chāoshì",
+        "ar": "سوبرماركت",
+        "lesson": 2,
+        "kind": "word"
+    },
+    {
+        "ch": "东西",
+        "py": "dōngxi",
+        "ar": "أشياء / سلع",
+        "lesson": 2,
+        "kind": "word"
+    },
+    {
+        "ch": "红海",
+        "py": "Hónghǎi",
+        "ar": "البحر الأحمر",
+        "lesson": 3,
+        "kind": "word"
+    },
+    {
+        "ch": "假期",
+        "py": "jiàqī",
+        "ar": "إجازة",
+        "lesson": 3,
+        "kind": "word"
+    },
+    {
+        "ch": "高铁",
+        "py": "gāotiě",
+        "ar": "القطار السريع",
+        "lesson": 3,
+        "kind": "word"
+    },
+    {
+        "ch": "还是",
+        "py": "háishì",
+        "ar": "الأفضل",
+        "lesson": 3,
+        "kind": "word"
+    },
+    {
+        "ch": "便宜",
+        "py": "piányi",
+        "ar": "رخيص",
+        "lesson": 3,
+        "kind": "word"
+    },
+    {
+        "ch": "早晨",
+        "py": "zǎochén",
+        "ar": "الصباح",
+        "lesson": 3,
+        "kind": "word"
+    },
+    {
+        "ch": "出发",
+        "py": "chūfā",
+        "ar": "ننطلق",
+        "lesson": 3,
+        "kind": "word"
+    },
+    {
+        "ch": "见面",
+        "py": "jiànmiàn",
+        "ar": "نلتقي",
+        "lesson": 3,
+        "kind": "word"
+    },
+    {
+        "ch": "门口",
+        "py": "ménkǒu",
+        "ar": "المدخل",
+        "lesson": 3,
+        "kind": "word"
+    },
+    {
+        "ch": "船",
+        "py": "chuán",
+        "ar": "قارب",
+        "lesson": 3,
+        "kind": "word"
+    },
+    {
+        "ch": "地理",
+        "py": "dìlǐ",
+        "ar": "الجغرافيا",
+        "lesson": 4,
+        "kind": "word"
+    },
+    {
+        "ch": "河",
+        "py": "hé",
+        "ar": "نهر",
+        "lesson": 4,
+        "kind": "word"
+    },
+    {
+        "ch": "长江",
+        "py": "Cháng Jiāng",
+        "ar": "نهر اليانغتسي",
+        "lesson": 4,
+        "kind": "word"
+    },
+    {
+        "ch": "公里",
+        "py": "gōnglǐ",
+        "ar": "كيلومتر",
+        "lesson": 4,
+        "kind": "word"
+    },
+    {
+        "ch": "答",
+        "py": "dá",
+        "ar": "يجيب",
+        "lesson": 4,
+        "kind": "word"
+    },
+    {
+        "ch": "苏达山",
+        "py": "Sūdá Shān",
+        "ar": "جبل السودة",
+        "lesson": 4,
+        "kind": "word"
+    },
+    {
+        "ch": "洲",
+        "py": "zhōu",
+        "ar": "قارة",
+        "lesson": 4,
+        "kind": "word"
+    },
+    {
+        "ch": "亚洲",
+        "py": "Yàzhōu",
+        "ar": "آسيا",
+        "lesson": 4,
+        "kind": "word"
+    },
+    {
+        "ch": "珠穆朗玛峰",
+        "py": "Zhūmùlǎngmǎ Fēng",
+        "ar": "قمة إيفرست",
+        "lesson": 4,
+        "kind": "word"
+    },
+    {
+        "ch": "张家界",
+        "py": "Zhāngjiājiè",
+        "ar": "تشانغجياجيه",
+        "lesson": 4,
+        "kind": "word"
+    },
+    {
+        "ch": "世界边缘",
+        "py": "Shìjiè Biānyuán",
+        "ar": "حافة العالم",
+        "lesson": 4,
+        "kind": "word"
+    }
+];
+    const sentences = [
+    {
+        "ch": "好久不见！",
+        "py": "Hǎojiǔ bújiàn!",
+        "ar": "لم نلتقِ منذ زمن!",
+        "lesson": 1,
+        "kind": "sentence"
+    },
+    {
+        "ch": "很高兴认识你。",
+        "py": "Hěn gāoxìng rènshi nǐ.",
+        "ar": "سعيد بالتعرّف إليك.",
+        "lesson": 1,
+        "kind": "sentence"
+    },
+    {
+        "ch": "艾莎就要毕业了。",
+        "py": "Àishā jiù yào bìyè le.",
+        "ar": "ستتخرّج عائشة قريبًا.",
+        "lesson": 1,
+        "kind": "sentence"
+    },
+    {
+        "ch": "我想买几个鸡蛋。",
+        "py": "Wǒ xiǎng mǎi jǐ ge jīdàn.",
+        "ar": "أريد أن أشتري بضع بيضات.",
+        "lesson": 2,
+        "kind": "sentence"
+    },
+    {
+        "ch": "这家超市东西真多。",
+        "py": "Zhè jiā chāoshì dōngxi zhēn duō.",
+        "ar": "السلع في هذا السوبرماركت كثيرة حقًا.",
+        "lesson": 2,
+        "kind": "sentence"
+    },
+    {
+        "ch": "我想买奶茶。",
+        "py": "Wǒ xiǎng mǎi nǎichá.",
+        "ar": "أريد أن أشتري شايًا بالحليب.",
+        "lesson": 2,
+        "kind": "sentence"
+    },
+    {
+        "ch": "这个假期",
+        "py": "zhè ge jiàqī",
+        "ar": "هذه الإجازة",
+        "lesson": 3,
+        "kind": "sentence"
+    },
+    {
+        "ch": "坐高铁",
+        "py": "zuò gāotiě",
+        "ar": "نستقل القطار السريع",
+        "lesson": 3,
+        "kind": "sentence"
+    },
+    {
+        "ch": "鸡蛋便宜",
+        "py": "jīdàn piányi",
+        "ar": "البيض رخيص",
+        "lesson": 3,
+        "kind": "sentence"
+    },
+    {
+        "ch": "还是高铁便宜",
+        "py": "háishì gāotiě piányi",
+        "ar": "القطار السريع أرخص",
+        "lesson": 3,
+        "kind": "sentence"
+    },
+    {
+        "ch": "明天早晨",
+        "py": "míngtiān zǎochén",
+        "ar": "صباح الغد",
+        "lesson": 3,
+        "kind": "sentence"
+    },
+    {
+        "ch": "明天早晨出发",
+        "py": "míngtiān zǎochén chūfā",
+        "ar": "ننطلق صباح الغد",
+        "lesson": 3,
+        "kind": "sentence"
+    },
+    {
+        "ch": "学校门口",
+        "py": "xuéxiào ménkǒu",
+        "ar": "عند مدخل المدرسة",
+        "lesson": 3,
+        "kind": "sentence"
+    },
+    {
+        "ch": "医院门口",
+        "py": "yīyuàn ménkǒu",
+        "ar": "عند مدخل المستشفى",
+        "lesson": 3,
+        "kind": "sentence"
+    },
+    {
+        "ch": "下次见面",
+        "py": "xià cì jiànmiàn",
+        "ar": "نلتقي المرة القادمة",
+        "lesson": 3,
+        "kind": "sentence"
+    },
+    {
+        "ch": "明天见面",
+        "py": "míngtiān jiànmiàn",
+        "ar": "نلتقي غدًا",
+        "lesson": 3,
+        "kind": "sentence"
+    },
+    {
+        "ch": "中国最长的河是哪一条？",
+        "py": "Zhōngguó zuì cháng de hé shì nǎ yì tiáo?",
+        "ar": "ما أطول نهر في الصين؟",
+        "lesson": 4,
+        "kind": "sentence"
+    },
+    {
+        "ch": "答对了！",
+        "py": "Dáduì le!",
+        "ar": "إجابتك صحيحة!",
+        "lesson": 4,
+        "kind": "sentence"
+    },
+    {
+        "ch": "苏达山，有3000多米高。",
+        "py": "Sūdá Shān, yǒu sān qiān duō mǐ gāo.",
+        "ar": "يزيد ارتفاع جبل السودة على ٣٠٠٠ متر.",
+        "lesson": 4,
+        "kind": "sentence"
+    },
+    {
+        "ch": "沙特阿拉伯在哪个洲？",
+        "py": "Shātè Ālābó zài nǎ ge zhōu?",
+        "ar": "في أي قارة تقع المملكة العربية السعودية؟",
+        "lesson": 4,
+        "kind": "sentence"
+    },
+    {
+        "ch": "长江有多长？",
+        "py": "Cháng Jiāng yǒu duō cháng?",
+        "ar": "ما طول نهر اليانغتسي؟",
+        "lesson": 4,
+        "kind": "sentence"
+    },
+    {
+        "ch": "有6300多公里长。",
+        "py": "Yǒu liù qiān sān bǎi duō gōnglǐ cháng.",
+        "ar": "يزيد طوله على ٦٣٠٠ كيلومتر.",
+        "lesson": 4,
+        "kind": "sentence"
+    },
+    {
+        "ch": "中国在哪个洲？",
+        "py": "Zhōngguó zài nǎ ge zhōu?",
+        "ar": "في أي قارة تقع الصين؟",
+        "lesson": 4,
+        "kind": "sentence"
+    },
+    {
+        "ch": "在亚洲。",
+        "py": "Zài Yàzhōu.",
+        "ar": "في آسيا.",
+        "lesson": 4,
+        "kind": "sentence"
+    },
+    {
+        "ch": "世界最高的山峰是哪一座？",
+        "py": "Shìjiè zuì gāo de shānfēng shì nǎ yí zuò?",
+        "ar": "ما أعلى قمة جبلية في العالم؟",
+        "lesson": 4,
+        "kind": "sentence"
+    },
+    {
+        "ch": "珠穆朗玛峰。",
+        "py": "Zhūmùlǎngmǎ Fēng.",
+        "ar": "قمة إيفرست.",
+        "lesson": 4,
+        "kind": "sentence"
+    },
+    {
+        "ch": "沙特也在亚洲！",
+        "py": "Shātè yě zài Yàzhōu!",
+        "ar": "تقع السعودية أيضًا في آسيا!",
+        "lesson": 4,
+        "kind": "sentence"
+    }
+];
+    const lessonTitles={1:'第一课 · 见面与介绍',2:'第二课 · 买东西',3:'第三课 · 出行与见面',4:'第四课 · 地理'};
+    let lessonScope='all';
+    function lessonBank(bank){return lessonScope==='all'?bank:bank.filter(item=>item.lesson===Number(lessonScope));}
+    function changeLesson(value){lessonScope=value;studyIndex=0;questionBags=Object.create(null);renderStudy();}
+    let studyTab='words', studyIndex=0, gameScope='mixed';
+    let questionBags=Object.create(null), currentQuestion=Object.create(null);
+    function escapeHTML(text){return String(text).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+    function nextQuestion(side){
+        const scope=isBossPhase?(bossType==='words'?'words':'sentences'):gameScope;
+        const bank=lessonBank(isBossPhase&&bossType==='order'?orderSentences:scope==='words'?vocab:scope==='sentences'?sentences:[...vocab,...sentences]);
+        return takeQuestion(bank,lessonScope+'-'+(isBossPhase&&bossType==='order'?'order':scope)+'-'+side,side);
+    }
+    const allRelics = [
+        {id:'time',icon:'🔋',name:'时空压缩器',arName:'ضاغط الزمن',buff:'每波总时间 +6 秒',arBuff:'وقت كل موجة +٦ ثوانٍ',debuff:'普通题每题得分 −2',arDebuff:'نقاط كل سؤال عادي −٢'},
+        {id:'shield',icon:'🛡️',name:'偏导护盾',arName:'درع عاكس',buff:'每波抵挡一次失误伤害与扣分',arBuff:'يحمي من ضرر خطأ واحد وخصمه كل موجة',debuff:'护盾耗尽后，失误额外扣 5 分',arDebuff:'بعد نفاد الدرع: خصم إضافي ٥ نقاط لكل خطأ'},
+        {id:'radar',icon:'🔭',name:'量子雷达',arName:'رادار كمي',buff:'匹配题排除一项；语序题提示开头',arBuff:'يستبعد خيارًا في المطابقة ويحدّد البداية في الترتيب',debuff:'每轮答题限时缩短 12%',arDebuff:'مهلة الإجابة أقصر بنسبة ١٢٪'},
+        {id:'engine',icon:'💥',name:'高爆引擎',arName:'محرك الانفجار',buff:'普通题每题得分 +2',arBuff:'نقاط كل سؤال عادي +٢',debuff:'每次失误损失 2 点生命',arDebuff:'كل خطأ يخصم نقطتين من الحياة'},
+        {id:'slow',icon:'❄️',name:'冰霜力场',arName:'حقل الجليد',buff:'每轮答题限时延长 18%',arBuff:'مهلة الإجابة أطول بنسبة ١٨٪',debuff:'每波普通题目标增加 2 题',arDebuff:'تحتاج إجابتين صحيحتين إضافيتين كل موجة'},
+        {id:'forgive',icon:'⚙️',name:'容错核心',arName:'نواة تحمّل الأخطاء',buff:'失误扣分减半',arBuff:'خصم النقاط عند الخطأ ينخفض للنصف',debuff:'生命上限 −1',arDebuff:'الحد الأقصى للحياة −١'},
+        {id:'target',icon:'📉',name:'跃迁降频',arName:'تخفيض القفزة',buff:'每波普通题目标减少 1 题',arBuff:'تحتاج إجابة صحيحة أقل كل موجة',debuff:'每波总时间 −7 秒',arDebuff:'وقت كل موجة −٧ ثوانٍ'},
+        {id:'heal',icon:'❤️',name:'纳米修复',arName:'إصلاح نانو',buff:'立即恢复 2 点生命；每局最多用两次',arBuff:'يستعيد نقطتين من الحياة، مرتين كحد أقصى',debuff:'下一波每轮答题限时缩短 15%',arDebuff:'الموجة التالية: مهلة كل جولة أقصر بنسبة ١٥٪',max:2},
+        {id:'maxhp',icon:'💖',name:'船体强化',arName:'تقوية الهيكل',buff:'生命上限 +1，同时恢复 1 点生命',arBuff:'أقصى حياة +١، واستعادة نقطة واحدة',debuff:'每轮答题限时缩短 8%',arDebuff:'مهلة الإجابة أقصر بنسبة ٨٪'},
+        {id:'gravity',icon:'🧲',name:'引力网',arName:'شبكة الجاذبية',buff:'选项固定，每轮限时延长 10%',arBuff:'خيارات ثابتة، ومهلة أطول بنسبة ١٠٪',debuff:'普通题每题得分 −1',arDebuff:'نقاط كل سؤال عادي −١'},
+        {id:'bullet',icon:'⏱️',name:'子弹时间',arName:'وقت الرصاصة',buff:'每波前两轮答题限时延长 30%',arBuff:'أول جولتين: مهلة أطول بنسبة ٣٠٪',debuff:'之后所有轮次限时缩短 10%',arDebuff:'بعدهما: مهلة أقصر بنسبة ١٠٪'},
+        {id:'vampire',icon:'🔄',name:'修复回路',arName:'دائرة الإصلاح',buff:'连续答对 6 题恢复 1 点生命',arBuff:'كل ٦ إجابات صحيحة متتالية تستعيد نقطة حياة',debuff:'无法获得护盾；与偏导护盾互斥',arDebuff:'لا يمكنك حمل درع، ولا يجتمع مع الدرع العاكس'},
+        {id:'anchor',icon:'⚓',name:'存档锚',arName:'مرساة النجاة',buff:'每波一次：受到致命伤害时保留 1 点生命',arBuff:'مرة كل موجة: تنجو من الضرر القاتل بنقطة حياة',debuff:'每波总时间 −6 秒',arDebuff:'وقت كل موجة −٦ ثوانٍ'},
+        {id:'wager',icon:'🎯',name:'专注芯片',arName:'شريحة التركيز',buff:'普通题每达成 4 连击，额外得 6 分',arBuff:'كل ٤ إجابات عادية متتالية: ٦ نقاط إضافية',debuff:'每次失误额外扣 8 分',arDebuff:'كل خطأ يخصم ٨ نقاط إضافية'},
+        {id:'lens',icon:'🔬',name:'单轨透镜',arName:'عدسة الاختراق',buff:'Boss 生命 −1',arBuff:'حياة الزعيم −١',debuff:'每波普通题目标增加 2 题',arDebuff:'إجابتان عاديتان إضافيتان كل موجة'},
+        {id:'reserve',icon:'⛽',name:'战术储备',arName:'احتياطي تكتيكي',buff:'进入 Boss 战时额外获得 6 秒总时间',arBuff:'وقت إضافي ٦ ثوانٍ عند بدء قتال الزعيم',debuff:'每轮答题限时缩短 10%',arDebuff:'مهلة الإجابة أقصر بنسبة ١٠٪'},
+        {id:'rhythm',icon:'🔧',name:'稳定核心',arName:'نواة الاستقرار',buff:'已有 3 连击时，下一轮答题限时 +0.8 秒',arBuff:'بعد ٣ إجابات متتالية: مهلة الجولة التالية +٠٫٨ ثانية',debuff:'每次失误额外损失 3 秒总时间',arDebuff:'كل خطأ يخصم ٣ ثوانٍ من وقت الموجة'},
+        {id:'mirror',icon:'🪞',name:'镜像模块',arName:'وحدة المرآة',buff:'Boss 同向匹配；语序题限时 +15%',arBuff:'اتجاه ترجمة موحّد، ومهلة الترتيب أطول بنسبة ١٥٪',debuff:'Boss 生命 +1',arDebuff:'حياة الزعيم +١'},
+        {id:'cooling',icon:'🧊',name:'散热装置',arName:'جهاز التبريد',buff:'答对补充 0.4 秒总时间，每波最多补 6 秒',arBuff:'كل إجابة صحيحة تعيد ٠٫٤ ثانية، حتى ٦ ثوانٍ للموجة',debuff:'普通题每题得分 −1',arDebuff:'نقاط كل سؤال عادي −١'},
+        {id:'repair',icon:'🧰',name:'快速维修舱',arName:'حجرة الصيانة',buff:'每次过关恢复 1 点生命',arBuff:'تستعيد نقطة حياة بعد إتمام كل موجة',debuff:'每波总时间 −5 秒',arDebuff:'وقت كل موجة −٥ ثوانٍ'}
+    ];
+    const relicById=new Map(allRelics.map(r=>[r.id,r]));
+    let currentStudent='',currentStudentId='',totalScore=0,peakScore=0,waveScore=0,combo=0,wrongStreak=0;
+    let currentWave=1,waveTarget=4,timeLeft=47,MAX_WAVE_TIME=47;
+    let isProcessing=false,lastClickTime=-Infinity,leaderboard=Object.create(null),legacyLeaderboard=Object.create(null);
+    let audioCtx;
+    let currentMeteoritesData=[],currentSpeedMultiplier=1;
+    let isBossPhase=false,bossMaxHP=2,bossCurrentHP=2,bossSolved={left:false,right:false};
+    let currentCorrectAnswer={center:null,left:null,right:null};
+    let maxHP=3,currentHP=3,currentShields=0;
+    let relicCounts=Object.create(null),offeredRelicIds=new Set(),healPenaltyWave=0;
+    let stats,roundId=0,roundActive=false,roundTimeLeft=0,roundTimeBudget=0,roundsThisWave=0;
+    let anchorUsed=false,coolingUsed=0,normalStreak=0,totalCorrect=0,totalWrong=0,endReason='';
+    const hudNodes=new Map();
+    function hasRelic(id){return Boolean(relicCounts[id]);}
+    function difficultyFor(wave,score){
+        const w=Math.max(0,wave-1),pressure=Math.max(0,score-160);
+        return {answers:4+w,waveSeconds:Math.max(14,47-3.6*w-1.2*Math.max(0,w-2)-pressure*.05),wordSeconds:Math.max(2.8,13-1.15*w-pressure*.014),bossHP:Math.min(8,2+Math.floor(w/2)),bossBonus:Math.max(4,12-w),options:wave>=3?4:3};
+    }
+    function statsFor(counts){
+        const h=id=>Boolean(counts[id]);
+        return {
+            maxHP:3+Number(h('maxhp'))-Number(h('forgive')),
+            baseScore:8+2*Number(h('engine'))-2*Number(h('time'))-Number(h('gravity'))-Number(h('cooling')),
+            waveTime:6*Number(h('time'))-7*Number(h('target'))-6*Number(h('anchor'))-5*Number(h('repair')),
+            target:2*Number(h('slow'))-Number(h('target'))+2*Number(h('lens')),
+            deadline:(h('radar')?.88:1)*(h('slow')?1.18:1)*(h('maxhp')?.92:1)*(h('gravity')?1.1:1)*(h('reserve')?.9:1),
+            damage:h('engine')?2:1,penalty:h('forgive')?.5:1,
+            bossHP:Number(h('mirror'))-Number(h('lens')),
+            bossBonus:h('reserve')?6:0
+        };
+    }
+    function scoreGain(){return Math.max(4,Math.min(12,stats.baseScore+(normalStreak>=3?2:0)))+(hasRelic('wager')&&(normalStreak+1)%4===0?6:0);}
+    function availableRelics(){return allRelics.filter(r=>r.id==='heal'?healUses<2&&currentHP<maxHP:!equippedRelics.includes(r.id));}
+    function initAudio(){
+        if(muted)return;
+        try{
+            const AudioContextClass=window.AudioContext||window.webkitAudioContext;
+            if(!AudioContextClass)return;
+            if(!audioCtx)audioCtx=new AudioContextClass();
+            if(!paused&&audioCtx.state==='suspended')audioCtx.resume();
+        }catch(e){/* Audio support is optional. */}
+    }
+    function playSound(type){
+        if(!audioCtx||muted||paused)return;
+        try{
+            const now=audioCtx.currentTime,osc=audioCtx.createOscillator(),gain=audioCtx.createGain();
+            const caution=type==='incorrect'||type==='boss_warning';
+            osc.type='sine';osc.frequency.setValueAtTime(caution?230:650,now);
+            gain.gain.setValueAtTime(.035,now);gain.gain.exponentialRampToValueAtTime(.0001,now+.055);
+            osc.connect(gain);gain.connect(audioCtx.destination);
+            osc.onended=()=>{osc.disconnect();gain.disconnect();};osc.start(now);osc.stop(now+.06);
+        }catch(e){/* The game does not depend on audio. */}
+    }
+
+    function refreshStudentList() {
+        const select = document.getElementById('student-select'); select.innerHTML = '<option value="">-- 请选择学生 / اختر الطالب --</option><option value="GUEST" style="color:var(--neon-gold)">👽 访客 Guest / زائر</option>';
+        studentRoster.forEach(student=>{const option=document.createElement('option');option.value=student.id;option.textContent=student.number+' · '+student.name+(Object.hasOwn(leaderboard,student.id)?' ✅':'');select.append(option);});
+    }
+
+    window.onload = () => {let id='1';try{id=localStorage.getItem('demo-star-orbit-grade9-selected-class')||'1';}catch(e){}selectClass(CLASSES[id]?id:'1');};
+    function switchScreen(id) { document.querySelectorAll('.screen').forEach(el=>{const active=el.id===id; el.classList.toggle('active',active); el.inert=!active;}); }
+
+    function goToPreview() {
+        const sel = document.getElementById('student-select').value;
+        if(!sel) return alert("请先选择一位指挥官！ يرجى اختيار قائد!");
+        if(sel === 'GUEST') {
+            currentStudent=(prompt('请输入访客代号:', `Guest_${Math.floor(Math.random()*1000)}`)||'').trim();
+            if(!currentStudent)return;
+            currentStudentId='guest:'+currentStudent;
+        } else {
+            const student=studentById.get(sel); if(!student)return;
+            currentStudent=student.name; currentStudentId=student.id;
+        }
+        const student=scoreStudent(currentStudentId);
+        document.getElementById('study-student').textContent=CLASSES[currentClass].ar+' · '+student.number+' · '+currentStudent;
+        setStudyTab('words'); switchScreen('preview-screen');
+    }
+    function setStudyTab(tab){studyTab=tab;studyIndex=0;renderStudy();}
+    function moveStudy(delta){studyIndex+=delta;renderStudy();}
+    function studyCard(item,label=''){
+        return `<article class="study-card ${studyTab==='words'?'word-card':'sentence-card'}">${label?`<div class="study-label">${escapeHTML(label)}</div>`:''}<div class="study-ar" lang="ar" dir="rtl">${escapeHTML(item.ar)}</div>${item.py?`<div class="study-py" lang="zh-Latn" dir="ltr">${escapeHTML(item.py)}</div>`:''}<div class="study-ch" lang="zh-CN" dir="ltr">${escapeHTML(item.ch)}</div></article>`;
+    }
+    function renderStudy(){
+        const list=lessonBank(studyTab==='words'?vocab:sentences);
+        const perPage=studyTab==='words'?2:1,pages=Math.ceil(list.length/perPage);
+        studyIndex=Math.max(0,Math.min(pages-1,studyIndex));
+        const subset=list.slice(studyIndex*perPage,(studyIndex+1)*perPage);
+        document.getElementById('preview-grid').classList.toggle('two-cards',perPage===2);
+        document.getElementById('preview-grid').innerHTML=subset.map(item=>studyCard(item,lessonTitles[item.lesson])).join('');
+        document.getElementById('preview-grid').scrollTop=0;
+        document.getElementById('study-progress').textContent=`${studyIndex+1} / ${pages}`;
+        document.getElementById('study-prev').disabled=studyIndex===0;
+        document.getElementById('study-next').disabled=studyIndex===pages-1;
+        document.querySelectorAll('[data-study]').forEach(btn=>{const selected=btn.dataset.study===studyTab;btn.classList.toggle('selected',selected);btn.setAttribute('aria-pressed',selected);});
+    }
+
+    const WEEKLY_LESSON=4;
+    const weeklyDeck=[...vocab,...sentences].filter(item=>item.lesson===WEEKLY_LESSON);
+    const weeklyNotes=new Map([{"kind":"word","ch":"地理","note":"اسم المادة التي ندرس فيها الأرض والبلدان والأنهار والجبال."},{"kind":"word","ch":"河","note":"مجرى مائي طبيعي. وعند السؤال عن نهر نستخدم أداة العدّ المناسبة للأنهار."},{"kind":"word","ch":"长江","note":"اسم نهر في الصين. في هذا الدرس نتدرّب على السؤال عن طوله."},{"kind":"word","ch":"公里","note":"وحدة لقياس المسافة. الكيلومتر الواحد يساوي ألف متر."},{"kind":"word","ch":"答","note":"فعل بمعنى الإجابة عن سؤال. ويظهر أيضًا في عبارة التشجيع بعد الإجابة الصحيحة."},{"kind":"word","ch":"苏达山","note":"اسم جبل في السعودية. الجزء الأخير من الاسم يعني «جبل»."},{"kind":"word","ch":"洲","note":"كلمة تعني «قارة». نستخدمها في السؤال عن القارة التي يقع فيها بلد."},{"kind":"word","ch":"亚洲","note":"اسم القارة: آسيا. في أمثلة الدرس، تقع الصين والسعودية في هذه القارة."},{"kind":"word","ch":"珠穆朗玛峰","note":"الاسم الصيني لقمة إيفرست. اقرأ الاسم كاملًا، مع الانتباه إلى نبرات المقاطع."},{"kind":"word","ch":"张家界","note":"اسم مكان في الصين. نتدرّب على قراءة الاسم وتذكّر نطق مقاطعه بالترتيب."},{"kind":"word","ch":"世界边缘","note":"اسم موقع طبيعي في السعودية، ومعناه «حافة العالم»."},{"kind":"sentence","ch":"中国最长的河是哪一条？","note":"سؤال عن أطول نهر في الصين. نستخدم صيغة التفضيل، ثم نسأل عن النهر المقصود.","focus":[["最长","zuì cháng","الأطول"],["哪一条","nǎ yì tiáo","أيّ نهر؟"]]},{"kind":"sentence","ch":"答对了！","note":"عبارة تشجيع تُقال بعد إجابة صحيحة. يدلّ الجزء الأخير هنا على اكتمال الفعل.","focus":[["答对","dáduì","أجاب إجابة صحيحة"],["了","le","يدلّ هنا على اكتمال الفعل"]]},{"kind":"sentence","ch":"苏达山，有3000多米高。","note":"لوصف ارتفاع الجبل: نذكر اسمه ثم مقدار ارتفاعه. الرقم في المثال يعني أكثر من ثلاثة آلاف متر.","focus":[["3000多米","sān qiān duō mǐ","أكثر من ٣٠٠٠ متر"],["高","gāo","مرتفع"]]},{"kind":"sentence","ch":"沙特阿拉伯在哪个洲？","note":"للسؤال عن القارة التي تقع فيها دولة. نبدأ باسم الدولة، ثم نسأل عن القارة.","focus":[["在","zài","يقع في"],["哪个洲","nǎ ge zhōu","أيّ قارة؟"]]},{"kind":"sentence","ch":"长江有多长？","note":"صيغة للسؤال عن الطول. يمكن استبدال اسم النهر للسؤال عن نهر آخر.","focus":[["有多长","yǒu duō cháng","ما طوله؟"]]},{"kind":"sentence","ch":"有6300多公里长。","note":"جواب عن سؤال طول النهر. الرقم يعني أكثر من ستة آلاف وثلاثمئة كيلومتر.","focus":[["6300多公里","liù qiān sān bǎi duō gōnglǐ","أكثر من ٦٣٠٠ كيلومتر"],["长","cháng","طويل"]]},{"kind":"sentence","ch":"中国在哪个洲？","note":"نفس صيغة السؤال عن القارة، وهنا البلد هو الصين. الجواب المختصر في الصفحة التالية.","focus":[["在哪个洲","zài nǎ ge zhōu","في أيّ قارة يقع؟"]]},{"kind":"sentence","ch":"在亚洲。","note":"جواب مختصر عن سؤال «في أي قارة؟». يمكن حذف اسم البلد عندما يكون معروفًا من السؤال.","focus":[["在","zài","في"],["亚洲","Yàzhōu","آسيا"]]},{"kind":"sentence","ch":"世界最高的山峰是哪一座？","note":"للسؤال عن أعلى قمة جبلية في العالم. تختلف أداة العدّ هنا عن الأداة المستخدمة مع الأنهار.","focus":[["最高","zuì gāo","الأعلى"],["哪一座","nǎ yí zuò","أيّ قمة؟"]]},{"kind":"sentence","ch":"珠穆朗玛峰。","note":"جواب مختصر يذكر اسم القمة فقط. يأتي بعد السؤال عن أعلى قمة جبلية في العالم."},{"kind":"sentence","ch":"沙特也在亚洲！","note":"تُستعمل لإضافة معلومة مماثلة: بعد الحديث عن الصين، نقول إن السعودية أيضًا في آسيا.","focus":[["也","yě","أيضًا"]]}].map(note=>[note.kind+':'+WEEKLY_LESSON+':'+note.ch,note]));
+    let weeklyFilter='all',weeklyIndex=0,weeklyReturnScreen='login-screen',weeklyReturnFocus=null;
+    function weeklyItems(){return weeklyDeck.filter(item=>weeklyFilter==='all'||item.kind===(weeklyFilter==='words'?'word':'sentence'));}
+    function openWeeklyGuide(){
+        const active=document.querySelector('.screen.active');
+        if(!active||!['login-screen','preview-screen'].includes(active.id)||!['login','result'].includes(phase))return;
+        weeklyReturnScreen=active.id;weeklyReturnFocus=document.activeElement;
+        weeklyFilter='all';weeklyIndex=0;renderWeeklyGuide();
+        document.body.classList.add('weekly-lecturing');switchScreen('weekly-screen');
+        document.getElementById('weekly-close').focus({preventScroll:true});
+    }
+    function closeWeeklyGuide(){
+        if(!document.getElementById('weekly-screen').classList.contains('active'))return;
+        document.body.classList.remove('weekly-lecturing');switchScreen(weeklyReturnScreen);
+        if(weeklyReturnFocus?.isConnected)weeklyReturnFocus.focus({preventScroll:true});
+    }
+    function setWeeklyFilter(value){
+        if(!['all','words','sentences'].includes(value))return;
+        weeklyFilter=value;weeklyIndex=0;renderWeeklyGuide();
+    }
+    function moveWeekly(delta){if(!Number.isFinite(delta))return;weeklyIndex+=Math.trunc(delta);renderWeeklyGuide();}
+    function renderWeeklyGuide(){
+        const list=weeklyItems();weeklyIndex=Math.max(0,Math.min(list.length-1,weeklyIndex));
+        const item=list[weeklyIndex],note=item?weeklyNotes.get(itemKey(item)):null;
+        const slide=document.getElementById('weekly-slide');
+        if(item){
+            const group=weeklyDeck.filter(entry=>entry.kind===item.kind);
+            const kind=item.kind==='word'?'词汇 / كلمة':'句型 / جملة';
+            const focus=note?.focus?.length?`<div class="weekly-focus">${note.focus.map(([ch,py,ar])=>`<div class="weekly-focus-part"><div class="focus-ar" lang="ar" dir="rtl">${escapeHTML(ar)}</div><div class="focus-py" lang="zh-Latn" dir="ltr">${escapeHTML(py)}</div><div class="focus-ch" lang="zh-CN" dir="ltr">${escapeHTML(ch)}</div></div>`).join('')}</div>`:'';
+            slide.innerHTML=`<article class="weekly-card"><div class="weekly-kind">${kind} · ${group.indexOf(item)+1} / ${group.length}</div><div class="weekly-ar" lang="ar" dir="rtl">${escapeHTML(item.ar)}</div><div class="weekly-py" lang="zh-Latn" dir="ltr">${escapeHTML(item.py)}</div><div class="weekly-ch" lang="zh-CN" dir="ltr">${escapeHTML(item.ch)}</div>${note?`<aside class="weekly-explanation"><p class="weekly-caption">讲解 / شرح</p><p class="weekly-note" lang="ar" dir="rtl">${escapeHTML(note.note)}</p>${focus}</aside>`:''}</article>`;
+        }else slide.innerHTML='<p class="learning-empty">暂无内容 / لا يوجد محتوى</p>';
+        slide.scrollTop=0;slide.scrollLeft=0;
+        document.getElementById('weekly-progress').textContent=(list.length?weeklyIndex+1:0)+' / '+list.length;
+        document.getElementById('weekly-prev').disabled=weeklyIndex===0;
+        document.getElementById('weekly-next').disabled=!list.length||weeklyIndex===list.length-1;
+        for(const type of ['all','words','sentences'])document.getElementById('weekly-count-'+type).textContent=type==='all'?weeklyDeck.length:weeklyDeck.filter(entry=>entry.kind===(type==='words'?'word':'sentence')).length;
+        document.querySelectorAll('[data-weekly-filter]').forEach(button=>{const selected=button.dataset.weeklyFilter===weeklyFilter;button.classList.toggle('selected',selected);button.setAttribute('aria-pressed',String(selected));});
+    }
+    function weeklyKeydown(event){
+        if(!document.getElementById('weekly-screen').classList.contains('active')||event.altKey||event.ctrlKey||event.metaKey||/^(INPUT|SELECT|TEXTAREA)$/.test(event.target?.tagName||''))return;
+        if(event.key==='ArrowLeft'){event.preventDefault();moveWeekly(-1);}
+        else if(event.key==='ArrowRight'){event.preventDefault();moveWeekly(1);}
+        else if(event.key==='Home'){event.preventDefault();weeklyIndex=0;renderWeeklyGuide();}
+        else if(event.key==='End'){event.preventDefault();weeklyIndex=weeklyItems().length-1;renderWeeklyGuide();}
+        else if(event.key==='Escape'){event.preventDefault();closeWeeklyGuide();}
+    }
+    document.addEventListener('keydown',weeklyKeydown);
+
+    // Textbook phrase boundaries; a standalone proper name remains a matching question only.
+    const ORDER_PARTS = [
+    [
+        [
+            "好久",
+            "hǎojiǔ"
+        ],
+        [
+            "不见",
+            "bújiàn"
+        ]
+    ],
+    [
+        [
+            "很高兴",
+            "hěn gāoxìng"
+        ],
+        [
+            "认识",
+            "rènshi"
+        ],
+        [
+            "你",
+            "nǐ"
+        ]
+    ],
+    [
+        [
+            "艾莎",
+            "Àishā"
+        ],
+        [
+            "就要",
+            "jiù yào"
+        ],
+        [
+            "毕业",
+            "bìyè"
+        ],
+        [
+            "了",
+            "le"
+        ]
+    ],
+    [
+        [
+            "我",
+            "wǒ"
+        ],
+        [
+            "想买",
+            "xiǎng mǎi"
+        ],
+        [
+            "几个",
+            "jǐ ge"
+        ],
+        [
+            "鸡蛋",
+            "jīdàn"
+        ]
+    ],
+    [
+        [
+            "这家超市",
+            "zhè jiā chāoshì"
+        ],
+        [
+            "东西",
+            "dōngxi"
+        ],
+        [
+            "真多",
+            "zhēn duō"
+        ]
+    ],
+    [
+        [
+            "我",
+            "wǒ"
+        ],
+        [
+            "想买",
+            "xiǎng mǎi"
+        ],
+        [
+            "奶茶",
+            "nǎichá"
+        ]
+    ],
+    [
+        [
+            "这个",
+            "zhè ge"
+        ],
+        [
+            "假期",
+            "jiàqī"
+        ]
+    ],
+    [
+        [
+            "坐",
+            "zuò"
+        ],
+        [
+            "高铁",
+            "gāotiě"
+        ]
+    ],
+    [
+        [
+            "鸡蛋",
+            "jīdàn"
+        ],
+        [
+            "便宜",
+            "piányi"
+        ]
+    ],
+    [
+        [
+            "还是",
+            "háishì"
+        ],
+        [
+            "高铁",
+            "gāotiě"
+        ],
+        [
+            "便宜",
+            "piányi"
+        ]
+    ],
+    [
+        [
+            "明天",
+            "míngtiān"
+        ],
+        [
+            "早晨",
+            "zǎochén"
+        ]
+    ],
+    [
+        [
+            "明天",
+            "míngtiān"
+        ],
+        [
+            "早晨",
+            "zǎochén"
+        ],
+        [
+            "出发",
+            "chūfā"
+        ]
+    ],
+    [
+        [
+            "学校",
+            "xuéxiào"
+        ],
+        [
+            "门口",
+            "ménkǒu"
+        ]
+    ],
+    [
+        [
+            "医院",
+            "yīyuàn"
+        ],
+        [
+            "门口",
+            "ménkǒu"
+        ]
+    ],
+    [
+        [
+            "下次",
+            "xià cì"
+        ],
+        [
+            "见面",
+            "jiànmiàn"
+        ]
+    ],
+    [
+        [
+            "明天",
+            "míngtiān"
+        ],
+        [
+            "见面",
+            "jiànmiàn"
+        ]
+    ],
+    [
+        [
+            "中国",
+            "Zhōngguó"
+        ],
+        [
+            "最长的河",
+            "zuì cháng de hé"
+        ],
+        [
+            "是",
+            "shì"
+        ],
+        [
+            "哪一条",
+            "nǎ yì tiáo"
+        ]
+    ],
+    [
+        [
+            "答对",
+            "dáduì"
+        ],
+        [
+            "了",
+            "le"
+        ]
+    ],
+    [
+        [
+            "苏达山",
+            "Sūdá Shān"
+        ],
+        [
+            "有3000多米",
+            "yǒu sān qiān duō mǐ"
+        ],
+        [
+            "高",
+            "gāo"
+        ]
+    ],
+    [
+        [
+            "沙特阿拉伯",
+            "Shātè Ālābó"
+        ],
+        [
+            "在",
+            "zài"
+        ],
+        [
+            "哪个洲",
+            "nǎ ge zhōu"
+        ]
+    ],
+    [
+        [
+            "长江",
+            "Cháng Jiāng"
+        ],
+        [
+            "有",
+            "yǒu"
+        ],
+        [
+            "多长",
+            "duō cháng"
+        ]
+    ],
+    [
+        [
+            "有",
+            "yǒu"
+        ],
+        [
+            "6300多公里",
+            "liù qiān sān bǎi duō gōnglǐ"
+        ],
+        [
+            "长",
+            "cháng"
+        ]
+    ],
+    [
+        [
+            "中国",
+            "Zhōngguó"
+        ],
+        [
+            "在",
+            "zài"
+        ],
+        [
+            "哪个洲",
+            "nǎ ge zhōu"
+        ]
+    ],
+    [
+        [
+            "在",
+            "zài"
+        ],
+        [
+            "亚洲",
+            "Yàzhōu"
+        ]
+    ],
+    [
+        [
+            "世界",
+            "Shìjiè"
+        ],
+        [
+            "最高的山峰",
+            "zuì gāo de shānfēng"
+        ],
+        [
+            "是",
+            "shì"
+        ],
+        [
+            "哪一座",
+            "nǎ yí zuò"
+        ]
+    ],
+    null,
+    [
+        [
+            "沙特",
+            "Shātè"
+        ],
+        [
+            "也",
+            "yě"
+        ],
+        [
+            "在",
+            "zài"
+        ],
+        [
+            "亚洲",
+            "Yàzhōu"
+        ]
+    ]
+];
+    function itemKey(item){return item.kind+':'+item.lesson+':'+item.ch;}
+    const canonicalItems=new Map([...vocab,...sentences].map(item=>[itemKey(item),item]));
+    const orderPartsByKey=new Map(sentences.map((item,i)=>[itemKey(item),ORDER_PARTS[i]]).filter(([,parts])=>parts?.length>=2));
+    const orderSentences=sentences.filter(item=>orderPartsByKey.has(itemKey(item)));
+    let equippedRelics=[],healUses=0,pendingRelicId=null;
+    let bossType='words',orderStates=Object.create(null);
+    let learningRecords=new Map(),reviewQueue=new Map(),learningTurn=0,questionsSinceReview=3;
+    let reviewFlags=Object.create(null),learningArchive=Object.create(null),lastSessionReport=null;
+    let correctionPending=null,correctionReady=false;
+    function bossTypeFor(wave){return ['words','sentences','order'][Math.max(0,wave-2)%3];}
+    const bossTitles={words:'词汇守卫 / حارس المفردات',sentences:'短句守卫 / حارس العبارات',order:'语序守卫 / حارس الترتيب'};
+    function takeQuestion(bank,key,side){
+        const other=isBossPhase&&side==='right'?currentQuestion.left:null;
+        const choices=bank.filter(item=>item!==other);
+        const candidates=choices.length?choices:bank;
+        if(!candidates.length)throw new Error('The selected lesson has no questions.');
+        const allowed=new Set(candidates.map(itemKey));
+        const due=[...reviewQueue.values()].filter(entry=>allowed.has(itemKey(entry.item))&&entry.dueTurn<=learningTurn&&entry.inFlight===null).sort((a,b)=>a.dueTurn-b.dueTurn);
+        if(due.length&&questionsSinceReview>=2){
+            const entry=due[0];entry.inFlight=roundId;questionsSinceReview=0;reviewFlags[side]=true;return entry.item;
+        }
+        questionsSinceReview++;reviewFlags[side]=false;
+        const fresh=candidates.filter(item=>!reviewQueue.has(itemKey(item)));
+        const regularAllowed=new Set((fresh.length?fresh:candidates).map(itemKey));
+        let bag=questionBags[key];
+        if(!bag?.some(item=>regularAllowed.has(itemKey(item))))bag=questionBags[key]=shuffle(bank);
+        const index=bag.findIndex(item=>regularAllowed.has(itemKey(item)));
+        const selected=bag.splice(index,1)[0];
+        const entry=reviewQueue.get(itemKey(selected));if(entry){entry.inFlight=roundId;reviewFlags[side]=true;questionsSinceReview=0;}
+        return selected;
+    }
+    function recordLearning(item,correct){
+        if(!item)return;
+        learningTurn++;const key=itemKey(item);
+        const record=learningRecords.get(key)||{key,correct:0,wrong:0,streak:0,needsReview:false,recovered:false};
+        if(correct){
+            totalCorrect++;record.correct++;record.streak++;
+            if(record.needsReview&&record.streak>=2){record.needsReview=false;record.recovered=true;reviewQueue.delete(key);}
+            else if(record.needsReview)reviewQueue.set(key,{item,dueTurn:learningTurn+3,inFlight:null});
+            else reviewQueue.delete(key);
+        }else{
+            totalWrong++;record.wrong++;record.streak=0;record.needsReview=true;record.recovered=false;
+            reviewQueue.set(key,{item,dueTurn:learningTurn+3,inFlight:null});
+        }
+        learningRecords.set(key,record);
+    }
+    function learningSummary(){
+        const items=[...learningRecords.values()].map(record=>({...record}));
+        const words=items.filter(r=>canonicalItems.get(r.key)?.kind==='word');
+        return {
+            at:new Date().toISOString(),score:totalScore,wave:currentWave,correct:totalCorrect,wrong:totalWrong,
+            accuracy:totalCorrect+totalWrong?totalCorrect/(totalCorrect+totalWrong):null,
+            masteredWords:words.filter(r=>r.streak>=2&&!r.needsReview).length,seenWords:words.length,
+            masteredPhrases:items.filter(r=>canonicalItems.get(r.key)?.kind==='sentence'&&r.streak>=2&&!r.needsReview).length,
+            recovered:items.filter(r=>r.recovered&&!r.needsReview).length,
+            reviewCount:items.filter(r=>r.needsReview).length,items
+        };
+    }
+    function learningStorageKey(){return CLASSES[currentClass].storageKey+'-learning-v21';}
+    function loadLearningArchive(){
+        learningArchive=Object.create(null);
+        try{
+            const saved=JSON.parse(localStorage.getItem(learningStorageKey())||'{}');
+            if(!saved||typeof saved!=='object'||Array.isArray(saved))return;
+            for(const [id,report] of Object.entries(saved).slice(0,200)){
+                if(!(studentById.has(id)||id.startsWith('guest:'))||!report||!Array.isArray(report.items)||!Number.isFinite(report.score)||!Number.isFinite(report.correct)||!Number.isFinite(report.wrong))continue;
+                const items=report.items.slice(0,canonicalItems.size).filter(r=>r&&canonicalItems.has(r.key)&&Number.isFinite(r.correct)&&Number.isFinite(r.wrong)&&Number.isFinite(r.streak));
+                learningArchive[id]={...report,items};
+            }
+        }catch(e){/* Existing energy scores remain usable if a learning record is unavailable. */}
+    }
+    function saveLearningReport(){
+        if(!currentStudentId)return;
+        lastSessionReport=learningSummary();learningArchive[currentStudentId]=lastSessionReport;
+        // Keep named students, plus the 30 most recent guests, within a bounded record size.
+        const guests=Object.keys(learningArchive).filter(id=>id.startsWith('guest:')).sort((a,b)=>String(learningArchive[b].at).localeCompare(String(learningArchive[a].at)));
+        guests.slice(30).forEach(id=>delete learningArchive[id]);
+        try{localStorage.setItem(learningStorageKey(),JSON.stringify(learningArchive));}
+        catch(e){document.getElementById('storage-status').textContent='学习记录未保存，请导出学习明细 / يرجى تنزيل سجل التعلّم';}
+    }
+    function learningItemHTML(record){
+        const item=canonicalItems.get(record.key);if(!item)return '';
+        return `<article class="learning-item"><div class="learning-ar" lang="ar" dir="rtl">${escapeHTML(item.ar)}</div><div class="learning-py" dir="ltr">${escapeHTML(item.py)}</div><div class="learning-ch" lang="zh">${escapeHTML(item.ch)}</div><small>答对 ${record.correct} · 失误 ${record.wrong} / صحيح ${record.correct} · خطأ ${record.wrong}</small></article>`;
+    }
+    function renderLearningResults(report){
+        if(!report)return;
+        setHUDText('learning-accuracy',report.accuracy===null?'—':Math.round(report.accuracy*100)+'%');
+        setHUDText('learning-mastered',report.masteredWords+' / '+report.seenWords);
+        setHUDText('learning-phrases',report.masteredPhrases);
+        setHUDText('learning-recovered',report.recovered);
+        const pending=report.items.filter(r=>r.needsReview).sort((a,b)=>b.wrong-a.wrong);
+        setHUDText('learning-review-count',pending.length);
+        document.getElementById('learning-review-list').innerHTML=pending.length?pending.map(learningItemHTML).join(''):'<p class="learning-empty" dir="auto">本局没有尚未巩固的错词 / لا توجد أخطاء تحتاج مراجعة إضافية في هذه الجولة</p>';
+        const mastered=report.items.filter(r=>r.streak>=2&&!r.needsReview);
+        document.getElementById('learning-mastered-list').innerHTML=mastered.length?mastered.map(learningItemHTML).join(''):'<p class="learning-empty" dir="auto">同一表达连续答对两次后，会显示在这里 / تظهر العبارة هنا بعد إجابتين صحيحتين متتاليتين عنها</p>';
+    }
+    function hideCorrection(){
+        correctionPending=null;correctionReady=false;
+        document.getElementById('correction-panel').hidden=true;document.getElementById('game-area').inert=false;
+        document.getElementById('correction-content').replaceChildren();
+    }
+    function showCorrection(items,terminal=false){
+        document.body.classList.remove('game-running');
+        correctionPending={terminal,token:roundId};correctionReady=false;
+        const panel=document.getElementById('correction-panel');panel.hidden=false;document.getElementById('game-area').inert=true;panel.focus?.();
+        const unique=[...new Map(items.filter(Boolean).map(item=>[itemKey(item),item])).values()];
+        document.getElementById('correction-content').innerHTML=unique.map(item=>{
+            const parts=isBossPhase&&bossType==='order'?orderPartsByKey.get(itemKey(item)):null;
+            return `<article class="correction-card"><div class="study-ar" dir="rtl" lang="ar">${escapeHTML(item.ar)}</div><div class="study-py" dir="ltr">${escapeHTML(item.py)}</div><div class="study-ch" lang="zh">${escapeHTML(item.ch)}</div>${parts?`<div class="correct-order" dir="ltr">${parts.map(([ch])=>`<span>${escapeHTML(ch)}</span>`).join('')}</div>`:''}</article>`;
+        }).join('');
+        const button=document.getElementById('correction-continue');button.disabled=true;button.textContent='先看正确表达 / راجع الإجابة الصحيحة';
+        later(()=>{
+            if(!correctionPending||correctionPending.token!==roundId)return;
+            correctionReady=true;button.disabled=false;button.focus?.({preventScroll:true});button.textContent=terminal?'查看学习成果 / عرض نتيجة التعلّم':'继续 / متابعة';
+        },2000);
+        requestFrame();
+    }
+    function continueCorrection(){
+        if(!correctionPending||!correctionReady||paused||correctionPending.token!==roundId)return;
+        const terminal=correctionPending.terminal;hideCorrection();
+        if(!terminal&&phase==='playing')beginRound();else requestFrame();
+    }
+
+    function clearFeedback(){document.querySelectorAll('.floating-text').forEach(el=>el.remove());document.body.classList.remove('screen-shake-light','screen-shake-heavy','hyper-jump');}
+    function startGame(){
+        jobs.clear();clearFeedback();particles.length=0;lasers.length=0;canvasDirty=true;
+        paused=false;phase='playing';previousFrame=null;lastClickTime=-Infinity;
+        document.getElementById('pause-overlay').hidden=true;document.body.classList.remove('paused');document.body.classList.add('game-running');
+        gameScope=document.getElementById('game-scope').value||'mixed';questionBags=Object.create(null);currentQuestion=Object.create(null);
+        hideCorrection();equippedRelics=[];healUses=0;pendingRelicId=null;
+        learningRecords=new Map();reviewQueue=new Map();learningTurn=0;questionsSinceReview=3;lastSessionReport=null;reviewFlags=Object.create(null);
+        relicCounts=Object.create(null);offeredRelicIds.clear();stats=statsFor(relicCounts);maxHP=stats.maxHP;currentHP=maxHP;
+        totalScore=0;peakScore=0;currentWave=1;totalCorrect=0;totalWrong=0;healPenaltyWave=0;endReason='';
+        document.getElementById('replacement-panel').hidden=true;document.getElementById('relic-container').hidden=false;renderEquipment();
+        initAudio();switchScreen('game-screen');startWave();requestFrame();
+    }
+    function updateStageVFX(){
+        document.querySelectorAll('.env-bg').forEach(el=>el.classList.remove('active'));
+        document.body.classList.remove('tier-1','tier-2','tier-3','boss-mode');
+        const tier=isBossPhase?'boss':currentWave>=5?'3':currentWave>=3?'2':'1';
+        document.getElementById('bg-tier-'+tier).classList.add('active');document.body.classList.add(tier==='boss'?'boss-mode':'tier-'+tier);
+    }
+    function updateComboVFX(){
+        document.body.classList.toggle('combo-tier-1',combo>=5&&combo<10);
+        document.body.classList.toggle('combo-tier-2',combo>=10&&combo<15);
+        document.body.classList.toggle('combo-tier-3',combo>=15);
+    }
+    function startWave(){
+        jobs.clear();clearFeedback();currentMeteoritesData=[];roundActive=false;roundId++;
+        document.body.classList.add('game-running');phase='playing';isBossPhase=false;stats=statsFor(relicCounts);maxHP=stats.maxHP;currentHP=Math.min(currentHP,maxHP);
+        const d=difficultyFor(currentWave,peakScore);
+        waveTarget=Math.max(3,d.answers+stats.target);waveScore=0;combo=0;normalStreak=0;wrongStreak=0;roundsThisWave=0;anchorUsed=false;coolingUsed=0;
+        const sentenceShare=gameScope==='sentences'?1:gameScope==='mixed'?lessonBank(sentences).length/lessonBank([...vocab,...sentences]).length:0;
+        const readingAllowance=waveTarget*sentenceShare*1.2;
+        MAX_WAVE_TIME=Math.max(8,d.waveSeconds+stats.waveTime+readingAllowance);timeLeft=MAX_WAVE_TIME;
+        currentShields=hasRelic('shield')?1:0;currentSpeedMultiplier=Math.min(2.2,1+(currentWave-1)*.12);
+        document.getElementById('game-area').innerHTML='<div class="orbit-path"></div>';
+        updateStageVFX();updateComboVFX();beginRound();updateHUD();requestFrame();
+    }
+    function advanceGameplay(dt){
+        if(!roundActive||isProcessing||phase!=='playing'||paused)return;
+        timeLeft=Math.max(0,timeLeft-dt);roundTimeLeft=Math.max(0,roundTimeLeft-dt);
+        if(timeLeft<=0){
+            const missed=isBossPhase?['left','right'].filter(side=>!bossSolved[side]).map(side=>currentQuestion[side]):[currentQuestion.center];
+            missed.forEach(item=>recordLearning(item,false));
+            endGame('波次时间耗尽 / انتهى وقت الموجة');setHUDText('correction-reason','波次时间耗尽 / انتهى وقت الموجة');showCorrection(missed,true);return;
+        }
+        if(roundTimeLeft<=0)resolveWrong('本轮超时 / انتهت مهلة الجولة');
+    }
+    function roundBudget(){
+        const d=difficultyFor(currentWave,peakScore);
+        const longQuestion=!isBossPhase&&currentQuestion.center?.kind==='sentence';
+        let seconds=isBossPhase?d.wordSeconds*1.6+1:d.wordSeconds+(longQuestion?Math.min(4.5,2+currentQuestion.center.ch.length*.12):0);
+        if(isBossPhase&&bossType==='sentences')seconds+=4;
+        if(isBossPhase&&bossType==='order')seconds+=6;
+        seconds*=stats.deadline;
+        if(isBossPhase&&bossType==='order'&&hasRelic('mirror'))seconds*=1.15;
+        if(healPenaltyWave===currentWave)seconds*=.85;
+        if(hasRelic('bullet'))seconds*=roundsThisWave<=2?1.30:.9;
+        if(hasRelic('rhythm')&&combo>=3)seconds+=.8;
+        return Math.max(isBossPhase?4.8:longQuestion?3.8:2.4,seconds);
+    }
+    function beginRound(){
+        if(phase!=='playing')return;
+        document.body.classList.add('game-running');
+        isProcessing=true;roundActive=false;roundId++;roundsThisWave++;
+        currentMeteoritesData=[];orderStates=Object.create(null);reviewFlags=Object.create(null);bossSolved={left:false,right:false};
+        // Unanswered companion questions remain eligible for a later revisit.
+        for(const entry of reviewQueue.values())entry.inFlight=null;
+        if(isBossPhase){
+            if(bossType==='order'){spawnOrderSet('left');spawnOrderSet('right');}
+            else{const mode=Math.random()>.5?0:1;spawnQuestionSet('left',mode);spawnQuestionSet('right',hasRelic('mirror')?mode:1-mode);}
+        }else spawnQuestionSet('center',Math.random()>.5?0:1);
+        roundTimeBudget=roundBudget();roundTimeLeft=roundTimeBudget;roundActive=true;isProcessing=false;
+        updateHUD();layoutOrbit();requestFrame();
+    }
+    function startBossPhase(){
+        if(phase!=='playing')return;
+        currentMeteoritesData=[];isBossPhase=true;roundActive=false;bossType=bossTypeFor(currentWave);
+        const d=difficultyFor(currentWave,peakScore);bossMaxHP=Math.max(1,d.bossHP+stats.bossHP);bossCurrentHP=bossMaxHP;
+        const readingBonus=bossMaxHP*(bossType==='sentences'?2:bossType==='order'?3:0);
+        timeLeft+=d.bossBonus+stats.bossBonus+readingBonus;MAX_WAVE_TIME=Math.max(MAX_WAVE_TIME,timeLeft);
+        document.getElementById('game-area').innerHTML=`<div id="boss-entity" class="active"><div class="boss-icon">🤖</div><div class="boss-hp" id="boss-hp-ui"></div></div><div class="orbit-path"></div>`;
+        updateStageVFX();playSound('boss_warning');beginRound();
+    }
+    function clearWave(){
+        if(phase!=='playing')return;
+        document.body.classList.remove('game-running');phase='relic';roundActive=false;isProcessing=true;roundId++;jobs.clear();clearFeedback();currentMeteoritesData=[];
+        if(hasRelic('repair'))currentHP=Math.min(maxHP,currentHP+1);
+        playSound('wave_clear');pendingRelicId=null;
+        const pool=shuffle(availableRelics()).slice(0,3);offeredRelicIds=new Set(pool.map(r=>r.id));
+        document.getElementById('replacement-panel').hidden=true;document.getElementById('relic-container').hidden=false;
+        renderRelicOffers();switchScreen('relic-screen');requestFrame();
+    }
+    function applyRelic(id){
+        if(phase!=='relic'||!document.getElementById('relic-screen').classList.contains('active'))return;
+        if(id==='skip'){finishRelicSelection('skip');return;}
+        if(pendingRelicId||!offeredRelicIds.has(id)||!availableRelics().some(r=>r.id===id))return;
+        if(id==='heal'){finishRelicSelection(id);return;}
+        const proposed=[...equippedRelics,id];
+        if(!validLoadout(proposed)){showReplacement(id);return;}
+        finishRelicSelection(id);
+    }
+    function recordCorrect(){
+        combo++;wrongStreak=0;
+        if(hasRelic('cooling')){const restored=Math.min(.4,6-coolingUsed);timeLeft+=restored;coolingUsed+=restored;}
+        if(hasRelic('vampire')&&combo%6===0)currentHP=Math.min(maxHP,currentHP+1);
+        updateComboVFX();
+    }
+    function checkAnswer(selected,element,mx,my,cx,cy,side,token=roundId){
+        if(phase!=='playing'||paused||isProcessing||!roundActive||token!==roundId||!element.isConnected||element.disabled||bossSolved[side]||timeLeft<=0||roundTimeLeft<=0)return;
+        const now=performance.now();if(now-lastClickTime<110)return;lastClickTime=now;
+        if(selected!==currentCorrectAnswer[side]){resolveWrong('答错 / إجابة خاطئة',side);return;}
+        completeCorrect(side,element,cx,cy,mx,my);
+    }
+    function resolveWrong(reason,side=null){
+        if(phase!=='playing'||paused||isProcessing||!roundActive)return;
+        const missed=side?[currentQuestion[side]]:isBossPhase?['left','right'].filter(s=>!bossSolved[s]).map(s=>currentQuestion[s]):[currentQuestion.center];
+        missed.forEach(item=>recordLearning(item,false));
+        isProcessing=true;roundActive=false;roundId++;combo=0;normalStreak=0;wrongStreak++;updateComboVFX();
+        let penalty=0;
+        if(currentShields>0){currentShields--;playSound('shield');}
+        else{
+            penalty=Math.floor((5+Math.min(3,wrongStreak-1)*3+(hasRelic('shield')?5:0)+(hasRelic('wager')?8:0))*stats.penalty);
+            totalScore=Math.max(0,totalScore-penalty);currentHP=Math.max(0,currentHP-stats.damage);
+            if(currentHP===0&&hasRelic('anchor')&&!anchorUsed){anchorUsed=true;currentHP=1;}
+            playSound('incorrect');spawnCanvasParticles(innerWidth/2,innerHeight/2,'#ff3333');
+        }
+        if(hasRelic('rhythm'))timeLeft=Math.max(0,timeLeft-3);
+        currentMeteoritesData.forEach(m=>{m.dom.disabled=true;if(m.dom.isCorrect)m.dom.style.borderColor='#76ffc1';});
+        updateHUD();
+        const terminal=currentHP<=0||timeLeft<=0;
+        if(terminal)endGame(currentHP<=0?'生命耗尽 / نفدت الحياة':'波次时间耗尽 / انتهى وقت الموجة');
+        setHUDText('correction-reason',reason+(penalty?' −'+penalty:''));showCorrection(missed,terminal);
+    }
+    function endGame(reason='挑战结束 / انتهى التحدّي'){
+        if(phase==='result')return;
+        hideCorrection();phase='result';roundActive=false;isProcessing=true;paused=false;roundId++;jobs.clear();currentMeteoritesData=[];particles.length=0;lasers.length=0;canvasDirty=true;clearFeedback();
+        document.body.classList.remove('game-running','paused','question-grid-mode','tier-1','tier-2','tier-3','boss-mode','combo-tier-1','combo-tier-2','combo-tier-3');document.getElementById('pause-overlay').hidden=true;
+        endReason=reason;setHUDText('final-score',totalScore);setHUDText('final-wave','抵达波次 / الموجة: '+currentWave);
+        setHUDText('result-detail',reason+' · '+totalCorrect+' 正确 / صحيح · '+totalWrong+' 失误 / خطأ');
+        if(currentStudentId&&(!Object.hasOwn(leaderboard,currentStudentId)||totalScore>leaderboard[currentStudentId]))leaderboard[currentStudentId]=totalScore;
+        saveScores();saveLearningReport();renderLearningResults(lastSessionReport);renderLeaderboard();switchScreen('result-screen');requestFrame();
+    }
+    function backToLogin(){hideCorrection();jobs.clear();roundActive=false;isProcessing=false;phase='login';clearFeedback();refreshStudentList();switchScreen('login-screen');requestFrame();}
+    function setHUDText(id,value){let el=hudNodes.get(id);if(!el?.isConnected){el=document.getElementById(id);if(el)hudNodes.set(id,el);}if(el&&el.textContent!==String(value))el.textContent=String(value);}
+    function updateHUD(){
+        setHUDText('hud-hp','生命: '+'❤️'.repeat(currentHP)+'🖤'.repeat(Math.max(0,maxHP-currentHP)));
+        setHUDText('hud-wave',isBossPhase?'波次 '+currentWave+' · '+bossTitles[bossType]+' '+bossCurrentHP+'/'+bossMaxHP:'波次 '+currentWave+' · 答对 '+waveScore+'/'+waveTarget+' 题 / إجابات صحيحة');
+        setHUDText('boss-hp-ui','HP: '+bossCurrentHP+'/'+bossMaxHP);setHUDText('hud-score','能量: '+totalScore);setHUDText('hud-combo','Combo: '+combo);
+        setHUDText('hud-clock','波次 / الموجة '+Math.max(0,timeLeft).toFixed(1)+'s');
+        setHUDText('hud-round',(isBossPhase?'双轨共用 / للجولتين معًا ':'本轮 / الجولة ')+Math.max(0,roundTimeLeft).toFixed(1)+'s');
+        document.getElementById('fuse-bar').style.transform='scaleX('+Math.max(0,Math.min(1,timeLeft/MAX_WAVE_TIME))+')';
+        document.getElementById('round-bar').style.transform='scaleX('+Math.max(0,Math.min(1,roundTimeLeft/(roundTimeBudget||1)))+')';
+        document.getElementById('round-meter').classList.toggle('urgent',roundTimeLeft<3.5);
+        document.getElementById('hud-shield').style.display=currentShields?'flex':'none';setHUDText('shield-count',currentShields);
+    }
+    function promptHTML(question,mode){return mode===0?`<div class="question-ch" lang="zh-CN">${escapeHTML(question.ch)}</div><div class="question-py" lang="zh-Latn" dir="ltr">${escapeHTML(question.py)}</div>`:`<div class="question-ar" dir="rtl" lang="ar">${escapeHTML(question.ar)}</div>`;}
+    function answerHTML(item,mode){return mode===0?`<div class="answer-ar" dir="rtl" lang="ar">${escapeHTML(item.ar)}</div>`:`<div class="answer-py" lang="zh-Latn" dir="ltr">${escapeHTML(item.py)}</div><div class="answer-ch">${escapeHTML(item.ch)}</div>`;}
+    function spawnQuestionSet(side,mode){
+        const area=document.getElementById('game-area');document.getElementById('column-'+side)?.remove();
+        const question=nextQuestion(side);currentQuestion[side]=question;currentCorrectAnswer[side]=question;
+        const pool=lessonBank(question.kind==='sentence'?sentences:vocab);
+        const count=isBossPhase?3:difficultyFor(currentWave,peakScore).options;
+        const options=shuffle([question,...shuffle(pool.filter(v=>v!==question)).slice(0,count-1)]);
+        const token=roundId;
+        const container=document.createElement('section');container.id='column-'+side;container.className='quiz-column';
+        const heading=document.createElement('div');heading.className='question-instruction';heading.textContent=(reviewFlags[side]?'复习回访 / مراجعة · ':'')+(isBossPhase?bossTitles[bossType]:question.kind==='sentence'?'选择对应表达 / اختر العبارة المطابقة':'选择对应的词 / اختر الكلمة المطابقة');container.append(heading);
+        const ship=document.createElement('div');ship.className='spaceship side-'+side;ship.id='ship-'+side;ship.innerHTML=promptHTML(question,mode);container.append(ship);
+        const answers=document.createElement('div');answers.className='answer-options';answers.dataset.count=options.length;container.append(answers);area.append(container);
+        const eliminated=hasRelic('radar')?shuffle(options.filter(o=>o!==question))[0]:null;
+        options.forEach((opt,index)=>{
+            const el=document.createElement('button');el.type='button';el.className='meteorite side-'+side;el.isCorrect=opt===question;
+            const content=document.createElement('div');content.className='answer-content';content.innerHTML=`<span class="option-letter" aria-hidden="true">${String.fromCharCode(65+index)}</span>`+answerHTML(opt,mode);el.append(content);answers.append(el);
+            if(opt===eliminated){el.disabled=true;el.classList.add('radar-eliminated');el.setAttribute('aria-label','已排除 / خيار مستبعد');}
+            el.onclick=e=>{const rect=el.getBoundingClientRect(),x=rect.left+rect.width/2,y=rect.top+rect.height/2;checkAnswer(opt,el,x,y,e.clientX||x,e.clientY||y,side,token);};
+            currentMeteoritesData.push({dom:el,angle:(index*360/options.length-90)*Math.PI/180,side,scale:0,orbital:false});
+        });
+    }
+    function orbitLoop(dt){
+        if(phase!=='playing'||paused)return;
+        for(const m of currentMeteoritesData){
+            if(!m.orbital||!m.dom.isConnected)continue;
+            if(!reducedMotion)m.angle+=.15*currentSpeedMultiplier*dt;
+            m.scale=Math.min(1,m.scale+dt*5);
+            m.dom.style.opacity=m.scale;
+            m.dom.style.transform=`translate3d(${Math.cos(m.angle)*m.radiusX}px,${Math.sin(m.angle)*m.radiusY}px,0) translate(-50%,-50%) scale(${m.scale})`;
+        }
+    }
+    function layoutOrbit(){
+        if(phase!=='playing')return;
+        const area=document.getElementById('game-area');
+        const fixed=isBossPhase||hasRelic('gravity')||currentQuestion.center?.kind==='sentence'||currentMeteoritesData.length>3||innerWidth<1400||innerHeight<850;
+        document.body.classList.toggle('question-grid-mode',fixed);area.classList.toggle('dual-layout',isBossPhase);
+        const hud=document.querySelector('.hud-top').getBoundingClientRect();
+        area.style.setProperty('--quiz-top',Math.max(155,hud.bottom+12)+'px');
+        for(const side of isBossPhase?['left','right']:['center']){
+            const col=document.getElementById('column-'+side),ship=document.getElementById('ship-'+side);if(!col||!ship)continue;
+            col.classList.toggle('grid-column',fixed);col.classList.toggle('orbit-column',!fixed);ship.removeAttribute('style');
+            const cardWidth=Math.min(330,innerWidth*.20),cardHeight=185,x=innerWidth/2,top=hud.bottom+65;
+            const y=top+(innerHeight-top-70)/2;
+            for(const m of currentMeteoritesData){if(m.side!==side)continue;m.orbital=!fixed;m.dom.removeAttribute('style');
+                if(!fixed){m.radiusX=Math.max(270,Math.min(innerWidth/2-cardWidth/2-35,490));m.radiusY=Math.max(200,(innerHeight-top-cardHeight-90)/2);m.dom.style.width=cardWidth+'px';m.dom.style.height=cardHeight+'px';m.dom.style.left=x+'px';m.dom.style.top=y+'px';}
+            }
+            if(!fixed){ship.style.left=x+'px';ship.style.top=y+'px';ship.style.width=Math.min(330,innerWidth*.20)+'px';ship.style.minHeight='170px';}
+        }
+    }
+    window.addEventListener('resize',layoutOrbit);
+    function showFloatingText(text,x,y,color){
+        if(document.querySelectorAll('.floating-text').length>=8)return;
+        const el=document.createElement('div');el.className='floating-text';el.textContent=text;el.style.color=color;el.style.left=x+'px';el.style.top=y+'px';document.body.append(el);later(()=>el.remove(),850);
+    }
+    function renderLeaderboard(){
+        const body=document.getElementById('leaderboard-body');body.replaceChildren();
+        Object.entries(leaderboard).sort((a,b)=>b[1]-a[1]).forEach(([id,score])=>{
+            const student=scoreStudent(id),tr=document.createElement('tr'),report=learningArchive[id];
+            const accuracy=report?.accuracy===null||report?.accuracy===undefined?'—':Math.round(report.accuracy*100)+'%';
+            for(const value of [student.number,student.name,score,accuracy]){const td=document.createElement('td');td.textContent=value;td.dir='auto';tr.append(td);}body.append(tr);
+        });
+        document.getElementById('legacy-export').hidden=!Object.keys(legacyLeaderboard).length;
+    }
+    function csvCell(value){let text=String(value);if(/^[\s]*[=+@-]/.test(text))text="'"+text;return '"'+text.replaceAll('"','""')+'"';}
+    function downloadCSV(legacy=false){
+        const scores=legacy?legacyLeaderboard:leaderboard;if(!Object.keys(scores).length)return alert('暂无数据 / لا توجد بيانات');
+        const header=legacy?'Class,Student Number,Student Name,Score':'Class,Student Number,Student Name,Best Score,Latest Score,Latest Accuracy,Mastered Words,Seen Words,Mastered Phrases,Review Items,Played At (Asia/Riyadh)';
+        const rows=Object.entries(scores).sort((a,b)=>b[1]-a[1]).map(([id,score])=>{
+            const student=scoreStudent(id),report=legacy?null:learningArchive[id];
+            const values=[CLASSES[currentClass].label,student.number,student.name,score];
+            if(!legacy)values.push(report?.score??'',report?.accuracy===null||report?.accuracy===undefined?'':(report.accuracy*100).toFixed(1)+'%',report?.masteredWords??'',report?.seenWords??'',report?.masteredPhrases??'',report?.reviewCount??'',report?.at?new Date(report.at).toLocaleString('sv-SE',{timeZone:'Asia/Riyadh'}):'');
+            return values.map(csvCell).join(',');
+        });
+        downloadCSVText('\uFEFF'+header+'\r\n'+rows.join('\r\n'),CLASSES[currentClass].label+'_'+(legacy?'旧版':'课堂')+'_星际轨道成绩单.csv');
+    }
+    function equippedCounts(ids=equippedRelics){return Object.fromEntries(ids.map(id=>[id,1]));}
+    function validLoadout(ids){return ids.every(id=>id!=='heal'&&relicById.has(id))&&ids.length<=3&&new Set(ids).size===ids.length&&!(ids.includes('shield')&&ids.includes('vampire'));}
+    function relicCardHTML(r,action){
+        return `<button type="button" class="relic-card" onclick="${action}"><span class="relic-icon">${r.icon}</span><span class="relic-title">${r.name}<span lang="ar" dir="rtl" class="relic-ar-title">${r.arName}</span></span>${r.id==='heal'?'<span class="service-label">维修服务 · 不占槽位 / خدمة فورية، دون خانة تجهيز</span>':''}<span class="relic-buff">＋ ${r.buff}<span lang="ar" dir="rtl" class="relic-ar-desc">${r.arBuff}</span></span><span class="relic-debuff">− ${r.debuff}<span lang="ar" dir="rtl" class="relic-ar-desc">${r.arDebuff}</span></span></button>`;
+    }
+    function renderEquipment(){
+        document.getElementById('equipped-relics').textContent='装备槽 / خانات التجهيز: '+equippedRelics.length+' / 3';
+        document.getElementById('equipment-slots').innerHTML=Array.from({length:3},(_,i)=>{
+            const r=relicById.get(equippedRelics[i]);
+            return `<div class="equipment-slot">${r?`<strong>${r.icon} ${r.name}</strong><span lang="ar" dir="rtl">${r.arName}</span>`:`<strong>空槽 ${i+1}</strong><span lang="ar" dir="rtl">خانة فارغة</span>`}</div>`;
+        }).join('');
+        setHUDText('hud-loadout',equippedRelics.length+'/3 '+equippedRelics.map(id=>relicById.get(id).icon).join(' '));
+    }
+    function renderRelicOffers(){
+        document.getElementById('relic-container').innerHTML=[...offeredRelicIds].map(id=>relicCardHTML(relicById.get(id),`applyRelic('${id}')`)).join('');
+        renderEquipment();
+    }
+    function prospectiveLoadout(id,removeId){return [...equippedRelics.filter(old=>old!==removeId),id];}
+    function replacementPreview(id,removeId){
+        const next=statsFor(equippedCounts(prospectiveLoadout(id,removeId))),old=statsFor(equippedCounts());
+        const signed=n=>(n>0?'+':'')+n;
+        return '生命上限 '+signed(next.maxHP-old.maxHP)+' · 每题得分 '+signed(next.baseScore-old.baseScore)+' · 每波时间 '+signed(next.waveTime-old.waveTime)+'s';
+    }
+    function showReplacement(id){
+        pendingRelicId=id;document.getElementById('relic-container').hidden=true;
+        const target=relicById.get(id),panel=document.getElementById('replacement-panel');panel.hidden=false;
+        document.getElementById('replacement-title').textContent='装入 '+target.name+' / تجهيز '+target.arName;
+        document.getElementById('replacement-detail').innerHTML=escapeHTML(target.buff)+'<span lang="ar" dir="rtl">'+escapeHTML(target.arBuff)+'</span>'+escapeHTML(target.debuff)+'<span lang="ar" dir="rtl">'+escapeHTML(target.arDebuff)+'</span>';
+        document.getElementById('replacement-options').innerHTML=equippedRelics.map(oldId=>{
+            const old=relicById.get(oldId),valid=validLoadout(prospectiveLoadout(id,oldId));
+            return `<button type="button" class="replace-option" onclick="replaceRelic('${oldId}')" ${valid?'':'disabled'}><strong>换下 ${old.icon} ${old.name}</strong><span lang="ar" dir="rtl">استبدال ${old.arName}</span><small>${valid?replacementPreview(id,oldId):'与现有模块互斥 / لا يجتمع مع تجهيز آخر'}</small><span class="removed-effect">移除其收益与代价 / تزال ميزته وآثاره الجانبية</span><span>${escapeHTML(old.buff)}<br><span lang="ar" dir="rtl">${escapeHTML(old.arBuff)}</span>${escapeHTML(old.debuff)}<br><span lang="ar" dir="rtl">${escapeHTML(old.arDebuff)}</span></span></button>`;
+        }).join('');
+    }
+    function cancelReplacement(){if(phase!=='relic')return;pendingRelicId=null;document.getElementById('replacement-panel').hidden=true;document.getElementById('relic-container').hidden=false;}
+    function replaceRelic(removeId){
+        if(phase!=='relic'||!pendingRelicId||!equippedRelics.includes(removeId)||!offeredRelicIds.has(pendingRelicId))return;
+        const id=pendingRelicId;if(!validLoadout(prospectiveLoadout(id,removeId)))return;
+        finishRelicSelection(id,removeId);
+    }
+    function finishRelicSelection(id,removeId=null){
+        if(phase!=='relic')return;
+        phase='transition';offeredRelicIds.clear();jobs.clear();pendingRelicId=null;
+        document.getElementById('replacement-panel').hidden=true;document.getElementById('relic-container').hidden=false;playSound('relic_pick');
+        if(id==='heal'){healUses++;currentHP=Math.min(maxHP,currentHP+2);healPenaltyWave=currentWave+1;}
+        else if(id!=='skip'){
+            equippedRelics=prospectiveLoadout(id,removeId);relicCounts=equippedCounts();stats=statsFor(relicCounts);maxHP=stats.maxHP;
+            currentHP=Math.min(currentHP,maxHP);if(id==='maxhp')currentHP=Math.min(maxHP,currentHP+1);
+        }
+        renderEquipment();currentWave++;later(()=>{switchScreen('game-screen');startWave();},250);
+    }
+    function orderControlAllowed(side,token){return phase==='playing'&&!paused&&!isProcessing&&roundActive&&token===roundId&&!bossSolved[side]&&orderStates[side]?.token===token;}
+    function spawnOrderSet(side){
+        const area=document.getElementById('game-area');document.getElementById('column-'+side)?.remove();
+        const item=nextQuestion(side);currentQuestion[side]=item;currentCorrectAnswer[side]=item;
+        const parts=orderPartsByKey.get(itemKey(item));
+        let indices=shuffle(parts.map((_,i)=>i));if(indices.every((n,i)=>n===i))indices=[...indices.slice(1),indices[0]];
+        const state={item,parts,indices,picked:hasRelic('radar')?[0]:[],locked:hasRelic('radar')?1:0,token:roundId};orderStates[side]=state;
+        const container=document.createElement('section');container.id='column-'+side;container.className='quiz-column grid-column order-column';
+        const heading=document.createElement('div');heading.className='question-instruction';heading.textContent=(reviewFlags[side]?'复习回访 / مراجعة · ':'')+'按课本语序拼接 / رتّب العبارة كما في الدرس';container.append(heading);
+        const ship=document.createElement('div');ship.id='ship-'+side;ship.className='spaceship';ship.innerHTML=`<div class="question-ar" lang="ar" dir="rtl">${escapeHTML(item.ar)}</div>`;container.append(ship);
+        const board=document.createElement('div');board.className='order-board';
+        board.innerHTML=`<div class="order-output" id="order-output-${side}" dir="ltr" aria-label="已选语序 / الترتيب المختار"></div><div class="order-pool" id="order-pool-${side}" dir="ltr"></div><p class="order-hint">${state.locked?'雷达已定位开头 / حدّد الرادار بداية العبارة':'点击词块，再提交 / اختر الأجزاء ثم أرسل الإجابة'}</p><div class="order-actions"><button type="button" id="order-undo-${side}" onclick="orderUndo('${side}',${roundId})">撤回 / تراجع</button><button type="button" id="order-submit-${side}" onclick="submitOrder('${side}',${roundId})">提交 / إرسال</button></div>`;
+        container.append(board);area.append(container);
+        const pool=document.getElementById('order-pool-'+side);
+        for(const index of indices){
+            const [ch,py]=parts[index],button=document.createElement('button');button.type='button';button.id='order-token-'+side+'-'+index;button.className='order-token';button.innerHTML=`<span class="token-py" dir="ltr">${escapeHTML(py)}</span><span class="token-ch">${escapeHTML(ch)}</span>`;
+            button.onclick=()=>orderSelect(side,index,state.token);pool.append(button);
+        }
+        updateOrderControls(side);
+    }
+    function updateOrderControls(side){
+        const state=orderStates[side];if(!state)return;
+        const output=document.getElementById('order-output-'+side);if(!output)return;
+        output.innerHTML=state.picked.length?state.picked.map(index=>{const [ch,py]=state.parts[index];return `<span class="order-picked"><span class="token-py">${escapeHTML(py)}</span><span class="token-ch">${escapeHTML(ch)}</span></span>`;}).join(''):'<span class="order-placeholder">在这里组成中文 / كوّن العبارة الصينية هنا</span>';
+        state.parts.forEach((_,i)=>{const button=document.getElementById('order-token-'+side+'-'+i);if(button){button.disabled=state.picked.includes(i);button.setAttribute('aria-pressed',String(button.disabled));}});
+        document.getElementById('order-undo-'+side).disabled=state.picked.length<=state.locked;
+        document.getElementById('order-submit-'+side).disabled=state.picked.length!==state.parts.length;
+    }
+    function orderSelect(side,index,token){
+        if(!orderControlAllowed(side,token))return;
+        const state=orderStates[side];if(!Number.isInteger(index)||index<0||index>=state.parts.length||state.picked.includes(index))return;
+        state.picked.push(index);updateOrderControls(side);
+    }
+    function orderUndo(side,token){
+        if(!orderControlAllowed(side,token))return;
+        const state=orderStates[side];if(state.picked.length<=state.locked)return;
+        state.picked.pop();updateOrderControls(side);
+    }
+    function submitOrder(side,token){
+        if(!orderControlAllowed(side,token))return;
+        const state=orderStates[side],element=document.getElementById('order-submit-'+side);
+        if(state.picked.length!==state.parts.length||!element||element.disabled)return;
+        const now=performance.now();if(now-lastClickTime<110)return;lastClickTime=now;
+        const answer=state.picked.map(i=>state.parts[i][0]).join(''),expected=state.parts.map(p=>p[0]).join('');
+        if(answer!==expected){resolveWrong('语序需要调整 / راجع ترتيب العبارة',side);return;}
+        const box=element.getBoundingClientRect();completeCorrect(side,element,box.left+box.width/2,box.top+box.height/2);
+    }
+    function completeCorrect(side,element,cx,cy,mx=cx,my=cy){
+        if(phase!=='playing'||paused||isProcessing||!roundActive||bossSolved[side])return;
+        isProcessing=true;recordLearning(currentQuestion[side],true);recordCorrect();playSound('correct',combo);spawnCanvasParticles(mx,my,'#00d8ff',true);
+        const column=document.getElementById('column-'+side);if(column)column.inert=true;
+        if(isBossPhase){
+            bossSolved[side]=true;document.getElementById('ship-'+side)?.classList.add('solved');
+            currentMeteoritesData.forEach(m=>{if(m.side===side)m.dom.disabled=true;});
+            if(bossSolved.left&&bossSolved.right){
+                roundActive=false;bossCurrentHP--;drawDOMToCanvasLaser(mx,my,innerWidth/2,70);updateHUD();
+                if(bossCurrentHP<=0)clearWave();else later(beginRound,250);
+            }else isProcessing=false;
+        }else{
+            const gain=scoreGain();totalScore+=gain;peakScore=Math.max(peakScore,totalScore);normalStreak++;waveScore++;
+            roundActive=false;showFloatingText('+'+gain,cx,cy,'var(--neon-gold)');drawDOMToCanvasLaser(innerWidth/2,innerHeight/2,mx,my);
+            if(waveScore>=waveTarget)later(currentWave>=2?startBossPhase:clearWave,180);else later(beginRound,180);
+        }
+        updateHUD();
+    }
+    function downloadLearningCSV(){
+        const report=lastSessionReport;if(!report?.items.length)return alert('本局尚无作答记录 / لا توجد إجابات مسجلة');
+        const student=scoreStudent(currentStudentId);
+        const rows=report.items.map(record=>{
+            const item=canonicalItems.get(record.key),status=record.needsReview?'需复习 / للمراجعة':record.streak>=2?'本局已巩固 / تم التثبيت':'待重复巩固 / يحتاج تكرارًا';
+            return [CLASSES[currentClass].label,student.number,student.name,item.lesson,item.kind==='word'?'词汇':'短语与句子',item.ch,item.py,item.ar,record.correct,record.wrong,record.streak,status,new Date(report.at).toLocaleString('sv-SE',{timeZone:'Asia/Riyadh'})].map(csvCell).join(',');
+        });
+        downloadCSVText('\uFEFFClass,Student Number,Student Name,Lesson,Type,Chinese,Pinyin,Arabic,Correct,Wrong,Consecutive Correct,Status,Played At (Asia/Riyadh)\r\n'+rows.join('\r\n'),CLASSES[currentClass].label+'_'+student.number+'_学习明细.csv');
+    }
+    function downloadCSVText(csv,filename){
+        const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'})),link=document.createElement('a');link.href=url;link.download=filename;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+    }
+</script>
+</body>
+</html>

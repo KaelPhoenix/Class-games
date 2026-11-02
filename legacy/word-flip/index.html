@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>课堂游戏：生词翻翻乐 (三语版)</title>
+<style>
+    body {
+        font-family: 'Microsoft YaHei', 'Segoe UI', sans-serif;
+        background-color: #eef2f3;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100vh;
+        margin: 0;
+        user-select: none;
+    }
+    h1 {
+        color: #333;
+        margin-bottom: 20px;
+        text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+    }
+    .game-board {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 15px;
+        max-width: 900px; /* 稍微宽一点以容纳更多文字 */
+        width: 95%;
+    }
+    .card {
+        background-color: transparent;
+        height: 140px; /*稍微加高一点，放两行字 */
+        perspective: 1000px;
+        cursor: pointer;
+    }
+    .card-inner {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        text-align: center;
+        transition: transform 0.6s;
+        transform-style: preserve-3d;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        border-radius: 10px;
+    }
+    .card.flipped .card-inner {
+        transform: rotateY(180deg);
+    }
+    .card.matched .card-inner {
+        transform: rotateY(180deg);
+        opacity: 0; 
+        transition: opacity 0.5s ease 0.5s;
+        cursor: default;
+    }
+    .card-front, .card-back {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        -webkit-backface-visibility: hidden;
+        backface-visibility: hidden;
+        display: flex;
+        flex-direction: column; /* 让文字垂直排列 */
+        align-items: center;
+        justify-content: center;
+        border-radius: 10px;
+        font-weight: bold;
+        box-sizing: border-box;
+    }
+    .card-front {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        font-size: 3em;
+        border: 2px solid #fff;
+    }
+    .card-back {
+        background-color: white;
+        color: #333;
+        transform: rotateY(180deg);
+        border: 4px solid #764ba2;
+        padding: 5px;
+    }
+    
+    /* 中文样式 */
+    .chinese-text {
+        font-size: 1.8em;
+    }
+
+    /* 阿拉伯语样式 */
+    .arabic-text {
+        font-family: 'Amiri', 'Arial', sans-serif;
+        font-size: 2em;
+        direction: rtl;
+        color: #d35400;
+        line-height: 1.2;
+    }
+    
+    /* 英文样式 */
+    .english-text {
+        font-family: 'Segoe UI', sans-serif;
+        font-size: 1em;
+        color: #7f8c8d;
+        margin-top: 5px;
+        font-weight: normal;
+    }
+
+    .btn {
+        margin-top: 30px;
+        padding: 12px 30px;
+        font-size: 1.2em;
+        background-color: #27ae60;
+        color: white;
+        border: none;
+        border-radius: 50px;
+        cursor: pointer;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+        transition: transform 0.1s;
+    }
+    .btn:active {
+        transform: scale(0.95);
+    }
+</style>
+</head>
+<body>
+
+<h1>Shopping Vocabulary (购物生词)</h1>
+<div class="game-board" id="gameBoard"></div>
+<button class="btn" onclick="initGame()">重新开始 (Restart)</button>
+
+<script>
+    // 游戏词库：中文 vs 阿拉伯语+英语
+    // Vocabulary Data: Chinese vs Arabic+English
+    const wordsData = [
+        {zh: "试 (shì)", ar: "يُجَرِّب", en: "Try", id: 1},
+        {zh: "件 (jiàn)", ar: "قِطْعَة", en: "Piece / Item", id: 2},
+        {zh: "衣服 (yīfu)", ar: "مَلابِس", en: "Clothes", id: 3},
+        {zh: "短 (duǎn)", ar: "قَصِير", en: "Short", id: 4},
+        {zh: "长 (cháng)", ar: "طَوِيل", en: "Long", id: 5},
+        {zh: "就 (jiù)", ar: "إِذَنْ", en: "Then / Just", id: 6}
+    ];
+
+    let gameGrid = [];
+    let firstCard = null;
+    let secondCard = null;
+    let lockBoard = false;
+
+    function initGame() {
+        const gameBoard = document.getElementById('gameBoard');
+        gameBoard.innerHTML = '';
+        gameGrid = [];
+        
+        // 创建配对数据
+        wordsData.forEach(word => {
+            // 中文卡
+            gameGrid.push({ id: word.id, content: word.zh, type: 'zh' });
+            // 阿语+英文卡
+            gameGrid.push({ id: word.id, content: word.ar, en: word.en, type: 'ar' });
+        });
+
+        // 随机打乱
+        gameGrid.sort(() => 0.5 - Math.random());
+
+        // 生成卡片
+        gameGrid.forEach((item, index) => {
+            const card = document.createElement('div');
+            card.classList.add('card');
+            card.dataset.id = item.id;
+            
+            // 构建卡片内容
+            let cardContentHTML = '';
+            if (item.type === 'zh') {
+                cardContentHTML = `<div class="chinese-text">${item.content}</div>`;
+            } else {
+                // 如果是阿语卡，下面加上英文
+                cardContentHTML = `
+                    <div class="arabic-text">${item.content}</div>
+                    <div class="english-text">${item.en}</div>
+                `;
+            }
+
+            card.innerHTML = `
+                <div class="card-inner">
+                    <div class="card-front">?</div>
+                    <div class="card-back">${cardContentHTML}</div>
+                </div>
+            `;
+            
+            card.addEventListener('click', flipCard);
+            gameBoard.appendChild(card);
+        });
+        
+        firstCard = null;
+        secondCard = null;
+        lockBoard = false;
+    }
+
+    function flipCard() {
+        if (lockBoard) return;
+        if (this === firstCard) return;
+
+        this.classList.add('flipped');
+
+        if (!firstCard) {
+            firstCard = this;
+            return;
+        }
+
+        secondCard = this;
+        checkForMatch();
+    }
+
+    function checkForMatch() {
+        let isMatch = firstCard.dataset.id === secondCard.dataset.id;
+        if (isMatch) {
+            disableCards();
+        } else {
+            unflipCards();
+        }
+    }
+
+    function disableCards() {
+        lockBoard = true;
+        setTimeout(() => {
+            firstCard.classList.add('matched');
+            secondCard.classList.add('matched');
+            resetBoard();
+        }, 600);
+    }
+
+    function unflipCards() {
+        lockBoard = true;
+        setTimeout(() => {
+            firstCard.classList.remove('flipped');
+            secondCard.classList.remove('flipped');
+            resetBoard();
+        }, 1200);
+    }
+
+    function resetBoard() {
+        [firstCard, secondCard, lockBoard] = [null, null, false];
+    }
+
+    initGame();
+</script>
+
+</body>
+</html>

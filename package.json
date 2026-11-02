@@ -10,6 +10,10 @@
     "test": "node --test",
     "start": "node scripts/serve.mjs",
     "dev": "node scripts/serve.mjs",
-    "start:grade9": "node scripts/serve.mjs grade9"
+    "start:grade9": "node scripts/serve.mjs grade9",
+    "start:match": "node scripts/serve.mjs legacy/word-match",
+    "start:mole": "node scripts/serve.mjs legacy/word-mole",
+    "start:flip": "node scripts/serve.mjs legacy/word-flip",
+    "start:speed": "node scripts/serve.mjs legacy/speed-challenge"
   }
 }

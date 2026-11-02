@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>课堂游戏：词语连连看</title>
+<style>
+    body {
+        font-family: 'Microsoft YaHei', sans-serif;
+        background-color: #f0f2f5;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        height: 100vh;
+        margin: 0;
+        user-select: none;
+    }
+
+    h1 { color: #2c3e50; margin: 20px 0; }
+
+    .game-container {
+        display: flex;
+        justify-content: space-between;
+        width: 800px;
+        max-width: 95%;
+        padding: 20px;
+        background: white;
+        border-radius: 20px;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+    }
+
+    .column {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+        width: 45%;
+    }
+
+    .card {
+        background-color: #fff;
+        border: 2px solid #e0e0e0;
+        border-radius: 12px;
+        padding: 15px;
+        cursor: pointer;
+        transition: all 0.2s;
+        text-align: center;
+        position: relative;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+    }
+
+    .card:hover { border-color: #3498db; transform: translateY(-2px); }
+    
+    .card.selected {
+        background-color: #e3f2fd;
+        border-color: #2196f3;
+        box-shadow: 0 0 0 4px rgba(33, 150, 243, 0.2);
+    }
+
+    .card.matched {
+        background-color: #e8f5e9;
+        border-color: #4caf50;
+        opacity: 0;
+        transform: scale(0.9);
+        pointer-events: none;
+    }
+
+    .card.wrong {
+        animation: shake 0.5s;
+        border-color: #f44336;
+        background-color: #ffebee;
+    }
+
+    /* 文字样式 */
+    .zh { font-size: 1.8em; font-weight: bold; color: #333; }
+    .py { font-size: 0.9em; color: #666; }
+    .ar { font-family: 'Amiri', serif; font-size: 1.4em; color: #d35400; direction: rtl; }
+    .en { font-size: 0.9em; color: #7f8c8d; }
+    
+    @keyframes shake {
+        0% { transform: translateX(0); }
+        25% { transform: translateX(-5px); }
+        50% { transform: translateX(5px); }
+        75% { transform: translateX(-5px); }
+        100% { transform: translateX(0); }
+    }
+
+    .btn-reset {
+        margin-top: 20px;
+        padding: 10px 30px;
+        background-color: #2c3e50;
+        color: white;
+        border: none;
+        border-radius: 50px;
+        cursor: pointer;
+        font-size: 1.2em;
+    }
+    
+    .status { margin-top: 10px; color: #666; }
+
+    /把那个阿语说明盖住看不见下面/
+    .intro-overlay {
+        position: fixed;
+        top: 0; left: 0; width: 100%; height: 100%;
+        background-color: rgba(44, 62, 80, 0.95);
+        z-index: 1000;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .intro-box {
+        background: white;
+        padding: 40px;
+        border-radius: 20px;
+        text-align: center;
+        max-width: 500px;
+        box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+    }
+
+    .intro-title {
+        font-family: 'Amiri', serif;
+        font-size: 2.5em;
+        color: #d35400;
+        margin-bottom: 20px;
+    }
+
+    .intro-text {
+        font-family: 'Amiri', serif;
+        font-size: 1.5em;
+        color: #34495e;
+        line-height: 1.8;
+        direction: rtl;
+        margin-bottom: 30px;
+    }
+
+    .btn-start {
+        font-family: 'Amiri', serif;
+        font-size: 1.5em;
+        padding: 15px 50px;
+        background-color: #27ae60;
+        color: white;
+        border: none;
+        border-radius: 50px;
+        cursor: pointer;
+        transition: transform 0.2s;
+    }
+    .btn-start:hover { transform: scale(1.05); background-color: #2ecc71; }
+
+</style>
+</head>
+<body>
+
+<div class="intro-overlay" id="introOverlay">
+    <div class="intro-box">
+        <div class="intro-title">طريقة اللعب</div>
+        <div class="intro-text">
+            أهلاً بكم!<br>
+            في هذه اللعبة، عليك توصيل <strong>الكلمة الصينية</strong> (في اليسار) بـ <strong>المعنى العربي</strong> الصحيح (في اليمين).<br>
+            حاول أن تجد كل الأزواج الصحيحة!
+        </div>
+        <button class="btn-start" onclick="closeIntro()">ابدأ اللعبة</button>
+    </div>
+</div>
+
+<h1>于老师的词语连连看 (Word Link by Yu)</h1>
+<div class="status" id="statusText">请点击左右两边的词进行配对</div>
+
+<div class="game-container">
+    <div class="column" id="colLeft"></div>
+    <div class="column" id="colRight"></div>
+</div>
+
+<button class="btn-reset" onclick="initGame()">🔄 重新开始 (Restart)</button>
+
+<script>
+    // 数据源
+    const vocab = [
+        {id: 1, zh: "应该", py: "yīng gāi", ar: "يَجِبُ", en: "should"},
+        {id: 2, zh: "冰淇淋", py: "bīng qí lín", ar: "آيْس كِرِيم/مُثَلَّجَات", en: "ice cream"},
+        {id: 3, zh: "草莓", py: "cǎo méi", ar: "فَرَاوِلَة", en: "strawberry"},
+        {id: 4, zh: "更", py: "gèng", ar: "أَكْثَر", en: "even more"},
+        {id: 5, zh: "芒果", py: "máng guǒ", ar: "مَانْجُو", en: "mango"},
+        {id: 6, zh: "马上", py: "mǎ shàng", ar: "حَالًا", en: "immediately"}
+    ];
+
+    let selectedLeft = null;
+    let selectedRight = null;
+    let matchedCount = 0;
+
+    function closeIntro() {
+        document.getElementById('introOverlay').style.display = 'none';
+        initGame();
+    }
+
+    function initGame() {
+        const colLeft = document.getElementById('colLeft');
+        const colRight = document.getElementById('colRight');
+        colLeft.innerHTML = '';
+        colRight.innerHTML = '';
+        matchedCount = 0;
+        document.getElementById('statusText').innerText = "请点击左右两边的词进行配对";
+
+        // 打乱顺序
+        const leftItems = [...vocab].sort(() => 0.5 - Math.random());
+        const rightItems = [...vocab].sort(() => 0.5 - Math.random());
+
+        // 生成左侧卡片 (中文)
+        leftItems.forEach(item => {
+            const card = document.createElement('div');
+            card.className = 'card';
+            card.dataset.id = item.id;
+            card.dataset.side = 'left';
+            card.innerHTML = `<div class="zh">${item.zh}</div><div class="py">${item.py}</div>`;
+            card.onclick = () => selectCard(card);
+            colLeft.appendChild(card);
+        });
+
+        // 生成右侧卡片 (阿语/英语)
+        rightItems.forEach(item => {
+            const card = document.createElement('div');
+            card.className = 'card';
+            card.dataset.id = item.id;
+            card.dataset.side = 'right';
+            card.innerHTML = `<div class="ar">${item.ar}</div><div class="en">${item.en}</div>`;
+            card.onclick = () => selectCard(card);
+            colRight.appendChild(card);
+        });
+    }
+
+    function selectCard(card) {
+        if (card.classList.contains('matched')) return;
+
+        // 选中逻辑
+        if (card.dataset.side === 'left') {
+            if (selectedLeft) selectedLeft.classList.remove('selected');
+            selectedLeft = card;
+            card.classList.add('selected');
+        } else {
+            if (selectedRight) selectedRight.classList.remove('selected');
+            selectedRight = card;
+            card.classList.add('selected');
+        }
+
+        // 检查配对
+        if (selectedLeft && selectedRight) {
+            checkMatch();
+        }
+    }
+
+    function checkMatch() {
+        if (selectedLeft.dataset.id === selectedRight.dataset.id) {
+            // 配对成功
+            selectedLeft.classList.add('matched');
+            selectedRight.classList.add('matched');
+            selectedLeft.classList.remove('selected');
+            selectedRight.classList.remove('selected');
+            selectedLeft = null;
+            selectedRight = null;
+            matchedCount++;
+            
+            if (matchedCount === vocab.length) {
+                document.getElementById('statusText').innerText = "🎉 太棒了！全部完成！ (Great Job!)";
+            }
+        } else {
+            // 配对失败
+            selectedLeft.classList.add('wrong');
+            selectedRight.classList.add('wrong');
+            setTimeout(() => {
+                if(selectedLeft) {
+                    selectedLeft.classList.remove('wrong', 'selected');
+                    selectedLeft = null;
+                }
+                if(selectedRight) {
+                    selectedRight.classList.remove('wrong', 'selected');
+                    selectedRight = null;
+                }
+            }, 500);
+        }
+    }
+</script>
+</body>
+</html>

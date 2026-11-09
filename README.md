@@ -4,6 +4,8 @@ Actual self-contained source versions:
 - [Grade 9](grade9/index.html): Library star-orbit-grade9-v23.html, current Library version 11.
 - Original 8.1.html and Git history remain preserved.
 
+Grade 8 now defaults to the latest four lessons present in this checkout: first-semester lessons 6–9 (57 words and 50 expressions). The original all-lesson, individual and cumulative lesson choices remain available. Real classroom roster replacement is pending confirmation of the current six-class roster source; repository defaults remain synthetic.
+
 Open either HTML file directly in a browser. No dependency install or build is required. Use Node 22+ and npm test for source syntax and privacy boundary checks.
 
 ## Privacy

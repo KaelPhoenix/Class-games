@@ -5,7 +5,7 @@
 <!-- {"sourceGame":"star-orbit-grade9-v23.html, version 11","roster":"初二平时成绩册_中阿双语扣分备注_2026-10-15.xlsx, 名单日期2026-10-14. Only names, numbers and verification status used.","lessons":"初二第一至第九课课件及八年级中文前五课复习资料。题目按课堂表达编写。","built":"2026-10-23","scope":"available first-semester lessons 1–9","wordCount":124,"sentenceCount":100} -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>星际轨道 · 初二九课六班版 V1</title>
+    <title>星际轨道 · 八年级最近四课版</title>
     <style>
         /* Offline-first: use installed Arabic fonts. */
 
@@ -463,12 +463,12 @@
         <h1>🌌 星际轨道 <span style="color:var(--neon-pink); font-size: 2.2rem;">八年级课堂版</span> 🚀</h1>
         
         <div class="changelog grade8-intro">
-            <div class="release-tag">初二 V1 · 第一至第九课 · 2026-10-23</div>
-            <h2 dir="rtl" lang="ar">مراجعة اللغة الصينية للصف التاسع</h2>
-            <p class="scope-ar" dir="rtl" lang="ar">الدروس من الأول إلى التاسع</p>
-            <p>八年级课堂练习 · 第一课至第九课</p>
+            <div class="release-tag">八年级 · 最近四课（第6—9课）</div>
+            <h2 dir="rtl" lang="ar">مراجعة اللغة الصينية للصف الثامن</h2>
+            <p class="scope-ar" dir="rtl" lang="ar">المراجعة الافتراضية: الدروس من السادس إلى التاسع</p>
+            <p>八年级课堂练习 · 默认第6—9课，可切换原有课次</p>
             <p id="class-status" class="scope-ar" dir="auto"></p>
-            <div class="scope-stats"><span>124 个词</span><span>100 组短语与句子</span><span>六个班 · 162 人</span><span>20 种改装模块</span></div>
+            <div class="scope-stats"><span>最近四课 57 个词</span><span>50 组短语与句子</span><span>六个班 · 162 人</span><span>20 种改装模块</span></div>
             <p class="instruction-ar" dir="rtl" lang="ar">اختر شعبتك، ثم راجع الكلمات والعبارات وابدأ التحدّي.</p>
         </div>
         <div class="class-picker" role="group" aria-label="班级切换 / اختر الشعبة"><button class="class-card" data-class="1" onclick="selectClass('1')" aria-pressed="true"><strong>201班</strong><span lang="ar" dir="rtl">الشعبة الأولى</span><small>29 人 / طالبًا</small></button><button class="class-card" data-class="2" onclick="selectClass('2')" aria-pressed="false"><strong>202班</strong><span lang="ar" dir="rtl">الشعبة الثانية</span><small>29 人 / طالبًا</small></button><button class="class-card" data-class="3" onclick="selectClass('3')" aria-pressed="false"><strong>203班</strong><span lang="ar" dir="rtl">الشعبة الثالثة</span><small>29 人 / طالبًا</small></button><button class="class-card" data-class="4" onclick="selectClass('4')" aria-pressed="false"><strong>204班</strong><span lang="ar" dir="rtl">الشعبة الرابعة</span><small>29 人 / طالبًا</small></button><button class="class-card" data-class="5" onclick="selectClass('5')" aria-pressed="false"><strong>205班</strong><span lang="ar" dir="rtl">الشعبة الخامسة</span><small>29 人 / طالبًا</small></button><button class="class-card" data-class="6" onclick="selectClass('6')" aria-pressed="false"><strong>206班</strong><span lang="ar" dir="rtl">الشعبة السادسة</span><small>17 人 / طالبًا</small></button></div>
@@ -481,7 +481,7 @@
     <!-- 2. 大字分页复习：预习内容与实际题库来自同一数据源 -->
     <div class="screen" id="preview-screen">
         <div class="study-heading"><div><h2 dir="rtl" lang="ar">راجع قبل التحدّي</h2><p data-class-label></p></div><span id="study-student" dir="rtl"></span></div>
-        <div class="lesson-filter"><label for="lesson-select">选择课次 / اختر الدرس</label><select id="lesson-select" onchange="changeLesson(this.value)"><option value="all">第一至第九课 · 综合复习 / جميع الدروس</option><optgroup label="单课复习 / درس واحد"><option value="1">第一课 · 这是我们的教室</option><option value="2">第二课 · 你们班有多少个学生？</option><option value="3">第三课 · 你们的学校真漂亮！</option><option value="4">第四课 · 跟我一起去踢足球吧。</option><option value="5">第五课 · 我爱运动。</option><option value="6">第六课 · 你可以教我吗？</option><option value="7">第七课 · 我还没画完呢。</option><option value="8">第八课 · 我们一起坐地铁去。</option><option value="9">第九课 · 我们家的饺子最好吃。</option></optgroup><optgroup label="只复习已学内容 / حتى الدرس"><option value="upto-2">第一课至第二课 / حتى الدرس الثاني</option><option value="upto-3">第一课至第三课 / حتى الدرس الثالث</option><option value="upto-4">第一课至第四课 / حتى الدرس الرابع</option><option value="upto-5">第一课至第五课 / حتى الدرس الخامس</option><option value="upto-6">第一课至第六课 / حتى الدرس السادس</option><option value="upto-7">第一课至第七课 / حتى الدرس السابع</option><option value="upto-8">第一课至第八课 / حتى الدرس الثامن</option><option value="upto-9">第一课至第九课 / حتى الدرس التاسع</option></optgroup></select><span id="selected-scope-count">124 个词 · 100 组表达</span></div>
+        <div class="lesson-filter"><label for="lesson-select">选择课次 / اختر الدرس</label><select id="lesson-select" onchange="changeLesson(this.value)"><option value="recent" selected>最近四课 · 第6—9课 / آخر أربعة دروس: ٦–٩</option><option value="all">第一至第九课 · 综合复习 / جميع الدروس</option><optgroup label="单课复习 / درس واحد"><option value="1">第一课 · 这是我们的教室</option><option value="2">第二课 · 你们班有多少个学生？</option><option value="3">第三课 · 你们的学校真漂亮！</option><option value="4">第四课 · 跟我一起去踢足球吧。</option><option value="5">第五课 · 我爱运动。</option><option value="6">第六课 · 你可以教我吗？</option><option value="7">第七课 · 我还没画完呢。</option><option value="8">第八课 · 我们一起坐地铁去。</option><option value="9">第九课 · 我们家的饺子最好吃。</option></optgroup><optgroup label="只复习已学内容 / حتى الدرس"><option value="upto-2">第一课至第二课 / حتى الدرس الثاني</option><option value="upto-3">第一课至第三课 / حتى الدرس الثالث</option><option value="upto-4">第一课至第四课 / حتى الدرس الرابع</option><option value="upto-5">第一课至第五课 / حتى الدرس الخامس</option><option value="upto-6">第一课至第六课 / حتى الدرس السادس</option><option value="upto-7">第一课至第七课 / حتى الدرس السابع</option><option value="upto-8">第一课至第八课 / حتى الدرس الثامن</option><option value="upto-9">第一课至第九课 / حتى الدرس التاسع</option></optgroup></select><span id="selected-scope-count">57 个词 · 50 组表达</span></div>
         <nav class="study-tabs" aria-label="复习分类">
             <button data-study="words" onclick="setStudyTab('words')">词汇 <span lang="ar" dir="rtl">الكلمات</span></button>
             <button data-study="sentences" onclick="setStudyTab('sentences')">短语与句子 <span lang="ar" dir="rtl">العبارات والجمل</span></button>
@@ -703,9 +703,10 @@
     const lessonMeta={"1":["这是我们的教室","هذا فصلنا الدراسي"],"2":["你们班有多少个学生？","كم طالبًا في شعبتكم؟"],"3":["你们的学校真漂亮！","مدرستكم جميلة حقًا!"],"4":["跟我一起去踢足球吧。","هيا نلعب كرة القدم معًا"],"5":["我爱运动。","أحب الرياضة"],"6":["你可以教我吗？","هل يمكنك تعليمي؟"],"7":["我还没画完呢。","لم أنتهِ من الرسم بعد"],"8":["我们一起坐地铁去。","نذهب بالمترو معًا"],"9":["我们家的饺子最好吃。","الجياوزي في بيتنا هو الألذّ"]};
     const lessonGrammar={"1":"في الصينية نضع كلمة العدّ بين العدد والاسم. استعمل 本 للكتب والدفاتر، و支 للأقلام. وفي وصف المكان نبدأ بالمكان ثم 有 ثم الشيء الموجود.","2":"نستخدم 几年级 للسؤال عن الصف الدراسي، و多少个学生 للسؤال عن عدد الطلاب. تأتي 是 قبل الاسم، ونقول 不知道 عندما لا نعرف.","3":"يأتي المكان المقصود قبل 在، ثم المكان المرجعي وكلمة الاتجاه. ونضع 常常 قبل الفعل للتعبير عن التكرار، و真 قبل الصفة لتأكيد الإعجاب.","4":"نضع 跟 قبل الشخص، و一起 قبل الفعل. تأتي 吧 في آخر الاقتراح. نقول 踢足球 لكرة القدم، و打篮球 لكرة السلة.","5":"تأتي 常常 أو 有时 قبل الفعل. نستخدم 每…都 للتكرار في كل مرة، و挺…的 للتعبير عن درجة كبيرة.","6":"تدلّ 会 على مهارة متعلّمة. نستخدم 可以…吗 لطلب الإذن أو المساعدة. تبدأ الجملة الشرطية بـ 如果 ثم نذكر النتيجة.","7":"يأتي 完 بعد الفعل للدلالة على إتمامه. نستخدم 还没…呢 لما لم يكتمل بعد. وتأتي 别 قبل الفعل للنهي، و岁 بعد العدد لذكر العمر.","8":"تدلّ 来 على المجيء نحو المتكلّم أو المكان المقصود، و去 على الذهاب. نستعمل 坐地铁 للتنقّل بالمترو، و先…然后 لذكر ترتيب الأفعال.","9":"تُقرأ 得 هنا děi وتعني وجوب الفعل. ونستخدم 不用 لعدم الحاجة إلى الفعل، و觉得 لعرض الرأي، و最 قبل الصفة أو الفعل للتفضيل."};
     const lessonTitles={"1":"第一课 · 这是我们的教室","2":"第二课 · 你们班有多少个学生？","3":"第三课 · 你们的学校真漂亮！","4":"第四课 · 跟我一起去踢足球吧。","5":"第五课 · 我爱运动。","6":"第六课 · 你可以教我吗？","7":"第七课 · 我还没画完呢。","8":"第八课 · 我们一起坐地铁去。","9":"第九课 · 我们家的饺子最好吃。"};
-    let lessonScope='all';
-    function lessonBank(bank){if(lessonScope==='all')return bank;if(lessonScope.startsWith('upto-'))return bank.filter(item=>item.lesson<=Number(lessonScope.slice(5)));return bank.filter(item=>item.lesson===Number(lessonScope));}
-    function changeLesson(value){if(!['all',...Array.from({length:9},(_,i)=>String(i+1)),...Array.from({length:9},(_,i)=>'upto-'+(i+1))].includes(value))return;lessonScope=value;studyIndex=0;questionBags=Object.create(null);renderStudy();document.getElementById('selected-scope-count').textContent=lessonBank(vocab).length+' 个词 · '+lessonBank(sentences).length+' 组表达';}
+    const RECENT_LESSONS = Object.freeze([6,7,8,9]);
+    let lessonScope='recent';
+    function lessonBank(bank){if(lessonScope==='recent')return bank.filter(item=>RECENT_LESSONS.includes(item.lesson));if(lessonScope==='all')return bank;if(lessonScope.startsWith('upto-'))return bank.filter(item=>item.lesson<=Number(lessonScope.slice(5)));return bank.filter(item=>item.lesson===Number(lessonScope));}
+    function changeLesson(value){if(!['recent','all',...Array.from({length:9},(_,i)=>String(i+1)),...Array.from({length:9},(_,i)=>'upto-'+(i+1))].includes(value))return;lessonScope=value;studyIndex=0;questionBags=Object.create(null);renderStudy();document.getElementById('selected-scope-count').textContent=lessonBank(vocab).length+' 个词 · '+lessonBank(sentences).length+' 组表达';}
     let studyTab='words', studyIndex=0, gameScope='mixed';
     let questionBags=Object.create(null), currentQuestion=Object.create(null);
     function escapeHTML(text){return String(text).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
@@ -795,7 +796,7 @@
         studentRoster.forEach(student=>{const option=document.createElement('option');option.value=student.id;option.textContent=student.number+' · '+student.name+(student.status==='待核对'?' (待核对 / للمراجعة)':'')+(Object.hasOwn(leaderboard,student.id)?' ✅':'');select.append(option);});
     }
 
-    window.onload = () => {let id='1';try{id=localStorage.getItem('demo-star-orbit-grade8-selected-class')||'1';}catch(e){}selectClass(CLASSES[id]?id:'1');};
+    window.onload = () => {let id='1';try{id=localStorage.getItem('demo-star-orbit-grade8-selected-class')||'1';}catch(e){}selectClass(CLASSES[id]?id:'1');changeLesson(lessonScope);};
     function switchScreen(id) { document.querySelectorAll('.screen').forEach(el=>{const active=el.id===id; el.classList.toggle('active',active); el.inert=!active;}); }
 
     function goToPreview() {
@@ -848,7 +849,7 @@
         const active=document.querySelector('.screen.active');
         if(!active||!['login-screen','preview-screen'].includes(active.id)||!['login','result'].includes(phase))return;
         weeklyReturnScreen=active.id;weeklyReturnFocus=document.activeElement;
-        weeklyFilter='all';weeklyIndex=0;setGuideLesson(lessonScope==='all'?guideLesson:lessonScope.startsWith('upto-')?Number(lessonScope.slice(5)):Number(lessonScope));
+        weeklyFilter='all';weeklyIndex=0;setGuideLesson(['recent','all'].includes(lessonScope)?guideLesson:lessonScope.startsWith('upto-')?Number(lessonScope.slice(5)):Number(lessonScope));
         document.body.classList.add('weekly-lecturing');switchScreen('weekly-screen');
         document.getElementById('weekly-close').focus({preventScroll:true});
     }
